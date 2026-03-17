@@ -1,0 +1,235 @@
+{
+  "version": "2.0",
+  "agents": {
+    "planner": {
+      "chainNext": "plan-reviewer",
+      "verification": {
+        "minLength": 300,
+        "required": ["markdown headers", "numbered steps", "file references"],
+        "regexChecks": {
+          "markdown headers": "^#+\\s.+",
+          "numbered steps": "(\\d+\\.\\s|\\bstep\\s*\\d|\\bphase\\s*\\d)",
+          "file references": "[a-zA-Z0-9_\\-\\/]+\\.(js|ts|py|go|rs|md|json|yaml|sh)\\b"
+        }
+      },
+      "retryGuidance": {
+        "generic": "Plan incomplete.",
+        "specific": {
+          "markdown headers": "Use ## headers to structure sections",
+          "numbered steps": "Add numbered steps like: 1. First do X",
+          "file references": "List files to modify: src/foo.ts, lib/bar.js",
+          "min length": "Plan too short. Add more detail to steps"
+        }
+      },
+      "instructions": "## Planner Guidelines\n- Create structured plan with markdown headers (##)\n- Include numbered steps/phases\n- List specific files to create/modify\n- Add code snippets where helpful\n- Save plan to plans/ directory"
+    },
+    "plan": {
+      "chainNext": "plan-reviewer",
+      "verification": {
+        "minLength": 300,
+        "required": ["markdown headers", "numbered steps", "file references"],
+        "regexChecks": {
+          "markdown headers": "^#+\\s.+",
+          "numbered steps": "(\\d+\\.\\s|\\bstep\\s*\\d|\\bphase\\s*\\d)",
+          "file references": "[a-zA-Z0-9_\\-\\/]+\\.(js|ts|py|go|rs|md|json|yaml|sh)\\b"
+        }
+      },
+      "retryGuidance": {
+        "generic": "Plan incomplete.",
+        "specific": {
+          "markdown headers": "Use ## headers to structure sections",
+          "numbered steps": "Add numbered steps like: 1. First do X",
+          "file references": "List files to modify: src/foo.ts, lib/bar.js",
+          "min length": "Plan too short. Add more detail to steps"
+        }
+      },
+      "instructions": "## Planner Guidelines\n- Create structured plan with markdown headers (##)\n- Include numbered steps/phases\n- List specific files to create/modify\n- Add code snippets where helpful\n- Save plan to plans/ directory"
+    },
+    "plan-reviewer": {
+      "chainNext": "implementer",
+      "verification": {
+        "minLength": 100,
+        "required": ["verdict", "explanation"],
+        "regexChecks": {
+          "verdict": "\\b(approved|lgtm|looks good|ready to implement|issue|missing|suggest)\\b",
+          "explanation": ".{50,}"
+        }
+      },
+      "retryGuidance": {
+        "generic": "Review incomplete.",
+        "specific": {
+          "verdict": "Must state APPROVED or list specific issues",
+          "explanation": "Explain what was reviewed or what's wrong",
+          "min length": "Review too brief. Add details"
+        }
+      },
+      "instructions": "## Plan Reviewer Guidelines\n- Check plan completeness: steps, files, dependencies\n- If APPROVED: explain what was verified\n- If ISSUES: list specific problems with suggestions\n- Be thorough but concise"
+    },
+    "implementer": {
+      "chainNext": "code-reviewer",
+      "verification": {
+        "minLength": 100,
+        "required": ["code blocks", "file operations"],
+        "regexChecks": {
+          "code blocks": "```[\\s\\S]*?```",
+          "file operations": "(created|modified|updated|wrote|edited)\\s+.+\\.(js|ts|py|go|md)"
+        }
+      },
+      "retryGuidance": {
+        "generic": "Implementation incomplete.",
+        "specific": {
+          "code blocks": "Include actual code in ``` blocks",
+          "file operations": "Show which files were created/modified",
+          "min length": "Add more implementation details"
+        }
+      },
+      "instructions": "## Implementer Guidelines\n- Write actual code, not descriptions\n- Use Edit/Write tools for file changes\n- Follow existing codebase patterns\n- Test changes compile/run"
+    },
+    "code-reviewer": {
+      "chainNext": "tester",
+      "verification": {
+        "minLength": 80,
+        "required": ["review verdict", "aspects checked"],
+        "regexChecks": {
+          "review verdict": "\\b(approved|lgtm|no issues|looks good|issue|bug|problem|fix)\\b",
+          "aspects checked": "(security|performance|logic|style|error handling|tested)"
+        }
+      },
+      "retryGuidance": {
+        "generic": "Review incomplete.",
+        "specific": {
+          "review verdict": "State APPROVED or list specific issues",
+          "aspects checked": "Mention what was checked: security, performance, logic, style",
+          "min length": "Add more review details"
+        }
+      },
+      "instructions": "## Code Reviewer Guidelines\n- Check: security, performance, logic, style\n- If APPROVED: mention aspects reviewed\n- If ISSUES: provide line numbers, specific fixes\n- Be actionable, not vague"
+    },
+    "tester": {
+      "chainNext": "git-manager",
+      "verification": {
+        "minLength": 50,
+        "required": ["test output", "results"],
+        "regexChecks": {
+          "test output": "(PASS|FAIL|passed|failed|\\d+\\s*(test|spec)s?)",
+          "results": "(\\d+\\s*pass|\\d+\\s*fail|\\d+\\/\\d+|100%|0 errors|coverage)"
+        }
+      },
+      "retryGuidance": {
+        "generic": "Test report needs actual results.",
+        "specific": {
+          "test output": "Include actual test output: PASS/FAIL status",
+          "results": "Show counts: X passed, Y failed, coverage %",
+          "min length": "Add more test details"
+        }
+      },
+      "instructions": "## Tester Guidelines\n- Run actual test commands (npm test, pytest, etc)\n- Include raw terminal output in report\n- Show pass/fail counts, coverage if available\n- Don't claim \"tests passed\" without evidence"
+    },
+    "debugger": {
+      "chainNext": "implementer",
+      "verification": {
+        "minLength": 100,
+        "required": ["root cause", "solution", "location"],
+        "regexChecks": {
+          "root cause": "(root cause|because|caused by|the issue is|problem is|reason:)",
+          "solution": "(fix|solution|resolve|to fix|should be|change.*to)",
+          "location": "(line\\s*\\d|:\\d+|\\.(js|ts|py)|\\bfunction\\b|\\bclass\\b)"
+        }
+      },
+      "retryGuidance": {
+        "generic": "Debug needs root cause + solution.",
+        "specific": {
+          "root cause": "Identify WHY it failed: 'The issue is caused by...'",
+          "solution": "Provide HOW to fix: 'To fix, change X to Y'",
+          "location": "Specify WHERE: file:line or function name",
+          "min length": "Add more debugging details"
+        }
+      },
+      "instructions": "## Debugger Guidelines\n- Identify root cause, not just symptoms\n- Provide specific file:line locations\n- Suggest concrete fix steps\n- Verify fix resolves issue"
+    },
+    "researcher": {
+      "chainNext": null,
+      "verification": {
+        "minLength": 200,
+        "required": ["findings", "structure", "sources"],
+        "regexChecks": {
+          "findings": "(found|discovered|result|conclusion|analysis)",
+          "structure": "(\\d+\\.\\s|##\\s|\\-\\s\\*\\*|options?:|approach)",
+          "sources": "(according to|documentation|source|reference|based on|http)"
+        }
+      },
+      "retryGuidance": {
+        "generic": "Research needs structured findings.",
+        "specific": {
+          "findings": "State what was found: 'Analysis shows...'",
+          "structure": "Use headers ## or numbered lists",
+          "sources": "Cite sources: 'According to docs...'",
+          "min length": "Add more research details"
+        }
+      },
+      "instructions": "## Researcher Guidelines\n- Structure findings with headers\n- Cite sources/documentation\n- Compare multiple approaches\n- Provide clear recommendations"
+    },
+    "explorer": {
+      "chainNext": null,
+      "verification": {
+        "minLength": 100,
+        "required": ["files listed", "paths", "structure"],
+        "regexChecks": {
+          "files listed": "[a-zA-Z0-9_\\-\\/]+\\.(js|ts|py|go|md|json|yaml)\\b",
+          "paths": "(\\/[a-zA-Z0-9_\\-\\/]+|\\.\\/|src\\/|lib\\/)",
+          "structure": "(\\d+\\.\\s|\\-\\s|\u251c|\u2514|\u2502)"
+        }
+      },
+      "retryGuidance": {
+        "generic": "Exploration needs file listing.",
+        "specific": {
+          "files listed": "List specific files: src/foo.ts, lib/bar.js",
+          "paths": "Include full paths: /path/to/file.js",
+          "structure": "Use tree structure or numbered list",
+          "min length": "Add more exploration details"
+        }
+      },
+      "instructions": "## Explorer Guidelines\n- List actual files/directories found\n- Show tree structure when helpful\n- Summarize patterns discovered\n- Note relevant file contents"
+    },
+    "docs-manager": {
+      "chainNext": null,
+      "verification": {
+        "minLength": 50,
+        "required": ["doc action"],
+        "regexChecks": {
+          "doc action": "(updated|created|modified|wrote|added to).*\\.(md|rst|txt)"
+        }
+      },
+      "retryGuidance": {
+        "generic": "Docs update needs specific files.",
+        "specific": {
+          "doc action": "Specify which docs were updated: 'Updated README.md'",
+          "min length": "Add summary of changes"
+        }
+      },
+      "instructions": "## Docs Manager Guidelines\n- Update relevant documentation\n- Keep docs in sync with code\n- Use clear, concise language\n- Include code examples where helpful"
+    },
+    "git-manager": {
+      "chainNext": null,
+      "verification": {
+        "minLength": 30,
+        "required": ["git operations"],
+        "regexChecks": {
+          "git operations": "(commit|push|staged|branch|git\\s)"
+        }
+      },
+      "retryGuidance": {
+        "generic": "Git operation needs confirmation.",
+        "specific": {
+          "git operations": "Confirm git actions: 'Committed abc123' or 'Pushed to main'"
+        }
+      },
+      "instructions": "## Git Manager Guidelines\n- Use conventional commits\n- Stage only relevant changes\n- Provide clear commit messages\n- Push when ready"
+    }
+  },
+  "maxRetries": 2,
+  "logging": {
+    "unified": true,
+    "logFile": "~/.claude/tmp/chain-events.jsonl"
+  }
+}

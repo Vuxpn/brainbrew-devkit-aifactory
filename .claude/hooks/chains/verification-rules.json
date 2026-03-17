@@ -1,0 +1,65 @@
+{
+  "planner": {
+    "minLength": 200,
+    "required": ["step", "file"],
+    "requiredAny": false,
+    "chainNext": "plan-reviewer",
+    "message": "Plan incomplete. Must include steps and files to modify."
+  },
+  "plan": {
+    "minLength": 200,
+    "required": ["step", "file"],
+    "requiredAny": false,
+    "chainNext": "plan-reviewer",
+    "message": "Plan incomplete. Must include steps and files to modify."
+  },
+  "plan-reviewer": {
+    "minLength": 100,
+    "requiredAny": true,
+    "required": ["approved", "lgtm", "issue", "missing", "suggest"],
+    "chainNext": "implementer",
+    "message": "Review incomplete. Must provide approval or list issues."
+  },
+  "implementer": {
+    "minLength": 100,
+    "requiredAny": true,
+    "required": ["```", "function", "class", "const", "def ", "import", "export"],
+    "chainNext": "code-reviewer",
+    "message": "Implementation incomplete. Must include actual code."
+  },
+  "code-reviewer": {
+    "minLength": 50,
+    "requiredAny": true,
+    "required": ["approved", "lgtm", "issue", "bug", "suggest", "fix"],
+    "chainNext": "tester",
+    "message": "Review incomplete. Must provide feedback."
+  },
+  "tester": {
+    "minLength": 50,
+    "requiredAny": true,
+    "required": ["test", "pass", "fail", "result", "error", "success"],
+    "chainNext": "git-manager",
+    "message": "Test report incomplete. Must include results."
+  },
+  "debugger": {
+    "minLength": 100,
+    "requiredAny": true,
+    "required": ["cause", "issue", "error", "fix", "solution", "found"],
+    "chainNext": "implementer",
+    "message": "Debug incomplete. Must identify cause or solution."
+  },
+  "researcher": {
+    "minLength": 200,
+    "requiredAny": true,
+    "required": ["found", "result", "option", "approach", "recommend"],
+    "chainNext": null,
+    "message": "Research incomplete. Must provide findings."
+  },
+  "explorer": {
+    "minLength": 100,
+    "requiredAny": true,
+    "required": ["file", "found", "directory", "structure", "pattern"],
+    "chainNext": null,
+    "message": "Exploration incomplete. Must list findings."
+  }
+}

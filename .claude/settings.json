@@ -22,7 +22,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node /Users/noroom113/.claude/hooks/modularization-hook.js"
+            "command": "node ~/.claude/hooks/modularization-hook.js"
           }
         ]
       },
@@ -31,7 +31,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node /Users/noroom113/.claude/hooks/chains/post-agent-hook.js"
+            "command": "node ~/.claude/hooks/chains/post-agent-hook.js"
           }
         ]
       }
@@ -42,7 +42,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node /Users/noroom113/.claude/hooks/scout-block.js"
+            "command": "node ~/.claude/hooks/scout-block.js"
           }
         ]
       }
@@ -53,7 +53,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node /Users/noroom113/.claude/hooks/chains/subagent-start.js"
+            "command": "node ~/.claude/hooks/chains/subagent-start.js"
           }
         ]
       }
@@ -64,11 +64,11 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node /Users/noroom113/.claude/hooks/chains/ai-verifier.js"
+            "command": "node ~/.claude/hooks/chains/ai-verifier.js"
           },
           {
             "type": "command",
-            "command": "node /Users/noroom113/.claude/hooks/chains/learnings-capture.js"
+            "command": "node ~/.claude/hooks/chains/learnings-capture.js"
           }
         ]
       }
@@ -79,7 +79,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node /Users/noroom113/.claude/hooks/error-logger.js"
+            "command": "node ~/.claude/hooks/error-logger.js"
           }
         ]
       }

@@ -51,6 +51,43 @@ The plugin uses Claude Code's hook system to orchestrate agent chains:
 4. **skills/** contains skill definitions referenced by agents
 5. **CLAUDE.md** injects the chain protocol into every session
 
+## Per-Project Custom Hooks
+
+You can add project-specific hooks that run alongside plugin hooks.
+
+### Setup
+
+1. Find your project's encoded path:
+   - Take the absolute project path (e.g., `/Users/me/myapp`)
+   - Replace all `/` with `-` (e.g., `-Users-me-myapp`)
+
+2. Create a chain config at `~/.claude/projects/{encoded}/chain-config.yaml`:
+
+   ```yaml
+   hooks:
+     PostToolUse:
+       - custom-hooks/lint-check.js
+     SubagentStop:
+       - custom-hooks/deploy-notify.js
+   ```
+
+3. Create your hook scripts in `~/.claude/projects/{encoded}/custom-hooks/`:
+
+   ```js
+   // custom-hooks/lint-check.js
+   const fs = require('fs');
+   const stdin = fs.readFileSync(0, 'utf-8').trim();
+   const payload = JSON.parse(stdin);
+   // ... your custom logic
+   ```
+
+### Behavior
+
+- Hook paths in `chain-config.yaml` resolve relative to the project config directory
+- Absolute paths are also supported
+- Project hooks run AFTER plugin hooks (append, not replace)
+- If loading project hooks fails, plugin hooks still run normally
+
 ## Customization
 
 - Add new agents by creating `.md` files in `agents/`

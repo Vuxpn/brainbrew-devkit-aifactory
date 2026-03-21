@@ -1,3 +1,7 @@
+# Plugin-level hook configuration.
+# Per-project overrides: ~/.claude/projects/{encoded-path}/chain-config.yaml
+# Path encoding: replace / with - (e.g., /Users/me/app -> -Users-me-app)
+# Project hooks run AFTER plugin hooks for each event.
 hooks:
   PostToolUse:
     - scripts/post-agent.cjs

@@ -11,17 +11,16 @@ var import_path2 = require("path");
 var import_os = require("os");
 var import_path = require("path");
 var HOME = (0, import_os.homedir)();
-var PLUGIN_ROOT = (0, import_path.resolve)(__dirname, "..");
 var CLAUDE_DIR = (0, import_path.join)(HOME, ".claude");
-var CHAINS_DIR = PLUGIN_ROOT;
+var CHAINS_DIR = (0, import_path.join)(CLAUDE_DIR, "chains");
 var BACKUP_DIR = (0, import_path.join)(CHAINS_DIR, ".backup");
-var AGENTS_DIR = (0, import_path.join)(PLUGIN_ROOT, "agents");
-var SKILLS_DIR = (0, import_path.join)(PLUGIN_ROOT, "skills");
-var HOOKS_DIR = (0, import_path.join)(PLUGIN_ROOT, "config");
-var TMP_DIR = (0, import_path.join)(HOME, ".claude", "tmp");
-var SETTINGS_FILE = (0, import_path.join)(HOME, ".claude", "settings.json");
-var CHAIN_CONFIG_FILE = (0, import_path.join)(PLUGIN_ROOT, "config", "chain-config.json");
-var VERIFICATION_RULES_FILE = (0, import_path.join)(PLUGIN_ROOT, "config", "verification-rules.json");
+var AGENTS_DIR = (0, import_path.join)(CLAUDE_DIR, "agents");
+var SKILLS_DIR = (0, import_path.join)(CLAUDE_DIR, "skills");
+var HOOKS_DIR = (0, import_path.join)(CLAUDE_DIR, "hooks", "chains");
+var TMP_DIR = (0, import_path.join)(CLAUDE_DIR, "tmp");
+var SETTINGS_FILE = (0, import_path.join)(CLAUDE_DIR, "settings.json");
+var CHAIN_CONFIG_FILE = (0, import_path.join)(HOOKS_DIR, "chain-config.json");
+var VERIFICATION_RULES_FILE = (0, import_path.join)(HOOKS_DIR, "verification-rules.json");
 var CHAIN_EVENTS_LOG = (0, import_path.join)(TMP_DIR, "chain-events.jsonl");
 
 // src/utils/state.ts

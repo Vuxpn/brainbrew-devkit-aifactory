@@ -60,16 +60,16 @@ var import_path3 = require("path");
 var import_os = require("os");
 var import_path2 = require("path");
 var HOME = (0, import_os.homedir)();
-var PLUGIN_ROOT = (0, import_path2.resolve)(__dirname, "..");
 var CLAUDE_DIR = (0, import_path2.join)(HOME, ".claude");
-var CHAINS_DIR = PLUGIN_ROOT;
-var AGENTS_DIR = (0, import_path2.join)(PLUGIN_ROOT, "agents");
-var SKILLS_DIR = (0, import_path2.join)(PLUGIN_ROOT, "skills");
-var HOOKS_DIR = (0, import_path2.join)(PLUGIN_ROOT, "config");
-var TMP_DIR = (0, import_path2.join)(HOME, ".claude", "tmp");
-var SETTINGS_FILE = (0, import_path2.join)(HOME, ".claude", "settings.json");
-var CHAIN_CONFIG_FILE = (0, import_path2.join)(PLUGIN_ROOT, "config", "chain-config.json");
-var VERIFICATION_RULES_FILE = (0, import_path2.join)(PLUGIN_ROOT, "config", "verification-rules.json");
+var CHAINS_DIR = (0, import_path2.join)(CLAUDE_DIR, "chains");
+var BACKUP_DIR = (0, import_path2.join)(CHAINS_DIR, ".backup");
+var AGENTS_DIR = (0, import_path2.join)(CLAUDE_DIR, "agents");
+var SKILLS_DIR = (0, import_path2.join)(CLAUDE_DIR, "skills");
+var HOOKS_DIR = (0, import_path2.join)(CLAUDE_DIR, "hooks", "chains");
+var TMP_DIR = (0, import_path2.join)(CLAUDE_DIR, "tmp");
+var SETTINGS_FILE = (0, import_path2.join)(CLAUDE_DIR, "settings.json");
+var CHAIN_CONFIG_FILE = (0, import_path2.join)(HOOKS_DIR, "chain-config.json");
+var VERIFICATION_RULES_FILE = (0, import_path2.join)(HOOKS_DIR, "verification-rules.json");
 var CHAIN_EVENTS_LOG = (0, import_path2.join)(TMP_DIR, "chain-events.jsonl");
 
 // src/utils/state.ts
@@ -114,6 +114,7 @@ function logEvent(data) {
 // src/hooks/post-agent.ts
 var LOG_FILE = (0, import_path5.join)(TMP_DIR, "agent-output.log");
 var PLANS_DIR = (0, import_path5.join)((0, import_os2.homedir)(), ".claude", "plans");
+var MAX_AGENT_LOOPS = 3;
 var CONFIG = { agents: {} };
 try {
   CONFIG = JSON.parse((0, import_fs4.readFileSync)(CHAIN_CONFIG_FILE, "utf-8"));
@@ -334,6 +335,35 @@ The chain will continue automatically when the agent finishes.
         next = chainDecision.next;
         log(LOG_FILE, `[CHAIN] ${type} \u2192 ${next} (${chainDecision.reason})
 `);
+      }
+    }
+    if (next && sessionId) {
+      const state = getState(sessionId) ?? { previousAgents: [] };
+      const nextAgentCount = (state.previousAgents ?? []).filter(
+        (a) => a.type === next
+      ).length;
+      if (nextAgentCount >= MAX_AGENT_LOOPS) {
+        log(LOG_FILE, `[LOOP BREAK] ${next} already ran ${nextAgentCount} times \u2014 stopping chain
+`);
+        logEvent({ event: "loop-break", agent: type, next, count: nextAgentCount, session: sessionId });
+        const loopNoti = `Agent ${type} completed | Chain stopped \u2014 **${next}** already ran ${nextAgentCount} times this session (max ${MAX_AGENT_LOOPS}).
+
+<system-reminder>
+## CHAIN LOOP DETECTED \u2014 STOPPED
+Agent **${next}** has been called ${nextAgentCount} times. This likely means there's a recurring issue that agents cannot resolve automatically.
+
+**Do NOT spawn another agent.** Report the situation to the user and ask for guidance.
+
+Summary of loop: ${(state.previousAgents ?? []).filter((a) => a.type === next).map((a) => a.outputSummary).join(" \u2192 ")}
+</system-reminder>`;
+        console.log(JSON.stringify({
+          continue: true,
+          hookSpecificOutput: {
+            hookEventName: "PostToolUse",
+            additionalContext: loopNoti
+          }
+        }));
+        process.exit(2);
       }
     }
     const preview = text.length > 200 ? text.substring(0, 200) + "..." : text;

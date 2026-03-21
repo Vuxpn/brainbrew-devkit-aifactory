@@ -1,19 +1,27 @@
 {
   "name": "brainbrew-devkit",
   "version": "1.0.0",
-  "description": "BrainBrew development toolkit - Claude Code plugin with agent chains, skills, and workflows",
+  "description": "AI-powered development toolkit — customizable agent chains, modular skills, and automated workflow orchestration",
   "type": "module",
+  "bin": {
+    "brainbrew": "./dist/cli.js"
+  },
   "files": ["dist", "plugin"],
   "scripts": {
-    "build": "tsc",
-    "dev": "tsc --watch",
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "lint": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "clean": "rm -rf dist"
   },
   "engines": {
     "node": ">=18.0.0"
   },
   "devDependencies": {
-    "typescript": "^5.3.0",
+    "typescript": "^5.7.0",
+    "tsup": "^8.4.0",
+    "vitest": "^3.0.0",
     "@types/node": "^20.0.0"
   },
   "license": "MIT"

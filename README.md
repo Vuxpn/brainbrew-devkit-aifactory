@@ -21,13 +21,21 @@ claude plugins install /path/to/brainbrew-devkit/plugin
 
 ## Quick Start
 
-```bash
-# Bump a workflow template to your project
-/chain-builder bump develop
+Just tell Claude what you want:
 
-# Or choose another template
+```
+"Set up a development workflow for this project"
+"I need a CI/CD pipeline"
+"Help me create a content marketing workflow"
+"Create a custom agent for code review"
+"Build me a skill for database migrations"
+```
+
+Or use slash commands:
+```bash
+/chain-builder bump develop
 /chain-builder bump devops
-/chain-builder bump marketing
+/skill-creator
 ```
 
 ## Workflow Templates
@@ -69,13 +77,14 @@ flow:
 
 ### Create Custom Agent
 
-```bash
-# Start with minimal template
-/chain-builder bump minimal
-
-# Create a new agent
-# Add file: .claude/agents/my-agent.md
+Just ask:
 ```
+"Create an agent for API testing"
+"I need an agent that reviews SQL queries"
+"Make me a documentation agent"
+```
+
+Or manually create `.claude/agents/my-agent.md`:
 
 ```markdown
 ---
@@ -99,12 +108,14 @@ tools:
 
 ### Create Custom Skill
 
-```bash
-# Use skill-creator
-/skill-creator
-
-# Or manually create: .claude/skills/my-skill/SKILL.md
+Just ask:
 ```
+"Create a skill for deploying to AWS"
+"I need a skill for running database migrations"
+"Make a skill that formats my code"
+```
+
+Or manually create `.claude/skills/my-skill/SKILL.md`:
 
 ```markdown
 ---
@@ -126,7 +137,14 @@ description: When to trigger this skill.
 
 ### Create Custom Chain
 
-Edit `.claude/chain-config.yaml`:
+Just ask:
+```
+"Create a workflow: researcher → writer → editor → publisher"
+"I need a chain for: scan code → review → test → deploy"
+"Build me a support workflow with ticket routing"
+```
+
+Or edit `.claude/chain-config.yaml`:
 
 ```yaml
 hooks:

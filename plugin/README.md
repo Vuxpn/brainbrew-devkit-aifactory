@@ -11,9 +11,19 @@ claude plugins install github:brainbrewlabs/brainbrew-devkit
 
 ## Quick Start
 
+Just tell Claude what you want:
+
+```
+"Set up a development workflow"
+"I need a CI/CD pipeline for this project"
+"Create a custom agent for API testing"
+"Build me a skill for database backups"
+```
+
+Or use slash commands:
 ```bash
-# Initialize project with a workflow template
 /chain-builder bump develop
+/skill-creator
 ```
 
 ## Workflow Templates
@@ -125,12 +135,13 @@ flow:
 
 ### Use Cases
 
-| Goal | Command |
-|------|---------|
-| Full dev workflow | `/chain-builder bump develop` |
-| CI/CD pipeline | `/chain-builder bump devops` |
-| Content creation | `/chain-builder bump marketing` |
-| Custom from scratch | `/chain-builder bump minimal` |
-| Create new skill | `/skill-creator` |
-| Improve agent | `/improve-agent` |
-| Find skills | `/skillhub search <query>` |
+| What you want | Just say |
+|---------------|----------|
+| Dev workflow | "Set up a development workflow" |
+| CI/CD pipeline | "I need a CI/CD pipeline" |
+| Content workflow | "Create a content marketing workflow" |
+| Custom agent | "Create an agent for X" |
+| Custom skill | "Build me a skill for Y" |
+| Custom chain | "Create a workflow: A → B → C" |
+| Find skills | "Find me a skill for testing" |
+| Improve agent | "Improve my code-reviewer agent" |

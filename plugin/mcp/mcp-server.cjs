@@ -21152,7 +21152,17 @@ ${instructions || `## Responsibilities
 [Expected output structure]`}
 `;
         (0, import_fs2.writeFileSync)(agentPath, content);
-        return success2(`\u2713 Created agent: ${agentPath}`);
+        return success2(`\u2713 Created agent: ${agentPath}
+
+\u{1F4A1} **Tip:** Create a companion skill to make this agent more powerful!
+
+A skill provides:
+- Domain-specific knowledge the agent can reference
+- Step-by-step procedures
+- Commands and templates
+
+Say: "Create a skill for ${agentName}" or use:
+\`create_skill(name: "${agentName}", description: "...", content: "...")\``);
       }
       // ─── list_agents ───
       case "list_agents": {

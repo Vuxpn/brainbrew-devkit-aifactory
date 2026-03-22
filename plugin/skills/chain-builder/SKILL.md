@@ -1,53 +1,76 @@
 ---
 name: chain-builder
 description: >-
-  Set up workflow templates for projects. Trigger when user says:
+  Set up workflow templates and manage chain flows. Trigger when user says:
   "set up a workflow", "create a development workflow", "I need a CI/CD pipeline",
-  "set up devops", "initialize project workflow", "bump develop", "bump devops",
-  "create agent chain", "set up marketing workflow", "configure dev environment".
+  "set up devops", "bump develop", "bump devops", "add agent to chain",
+  "show chain flow", "edit chain config", "create custom workflow".
 ---
 
 # Chain Builder
 
-## When user asks to set up a workflow:
+## Set Up a Workflow Template
 
-**Use MCP tool `bump_template`:**
+**Use MCP tool:**
 
 ```
 mcp__brainbrew__bump_template(template: "develop")
 ```
 
-## Template Options
+### Templates
 
-| Template | Description |
-|----------|-------------|
-| `develop` | Full dev chain: planner → implementer → tester → git |
-| `devops` | CI/CD: scanner → security → test → deploy → monitor |
-| `marketing` | Content: researcher → writer → editor → publisher |
-| `research` | Analysis: researcher → gatherer → analyzer → writer |
-| `docs` | Documentation: scanner → generator → reviewer → publish |
-| `support` | Support: classifier → router → responder → reviewer |
-| `data` | Data pipeline: collector → cleaner → analyzer → reporter |
-| `moderation` | Content mod: scanner → classifier → reviewer → actioner |
-| `review` | Simple code review only |
-| `minimal` | Empty - add your own |
+| Template | Chain |
+|----------|-------|
+| `develop` | planner → plan-reviewer → implementer → code-reviewer → tester → git-manager |
+| `devops` | code-scanner → security-auditor → test-runner → deployer → monitor |
+| `marketing` | researcher → content-writer → editor → seo-optimizer → publisher |
+| `research` | topic-researcher → source-gatherer → analyzer → synthesizer → report-writer |
+| `docs` | code-scanner → doc-generator → doc-reviewer → formatter → publisher |
+| `support` | ticket-classifier → router → knowledge-searcher → response-drafter → reviewer |
+| `data` | data-collector → cleaner → analyzer → visualizer → reporter |
+| `moderation` | content-scanner → classifier → flagger → reviewer → actioner |
+| `review` | code-reviewer → END |
+| `minimal` | hooks only (add your own) |
 
-## Natural Language → Template
+## Show Chain Flow
 
-| User says | Template |
-|-----------|----------|
-| "set up dev workflow" | develop |
-| "CI/CD pipeline" | devops |
-| "content marketing" | marketing |
-| "documentation workflow" | docs |
-| "start from scratch" | minimal |
-
-## After Setup - Tell User:
-
+Read directly:
+```bash
+cat .claude/chain-config.yaml
 ```
-Workflow set up! You can now:
-- "Create an agent for X" → mcp__brainbrew__create_agent
-- "Create a skill for Y" → mcp__brainbrew__create_skill
-- "Tell implementer to Z" → mcp__brainbrew__memory_add
-- "Show me the chain flow" → mcp__brainbrew__get_chain_flow
+
+## Add Agent to Chain
+
+Edit `.claude/chain-config.yaml`:
+
+```yaml
+flow:
+  # Add new agent
+  new-agent:
+    routes:
+      next-agent: "Success description"
+      fallback: "Failure description"
+    decide: |
+      If SUCCESS → "next-agent"
+      If FAILED → "fallback"
+```
+
+Then update the previous agent's routes to point to the new agent.
+
+## Create Custom Workflow
+
+1. Start with: `mcp__brainbrew__bump_template(template: "minimal")`
+2. Create agents: Write `.claude/agents/*.md`
+3. Create skills: Write `.claude/skills/*/SKILL.md`
+4. Define flow: Edit `.claude/chain-config.yaml`
+
+## After Setup
+
+Tell user:
+```
+Workflow ready! You can:
+- "Create an agent for X"
+- "Create a skill for Y"
+- "Tell implementer to Z" (Memory Bus)
+- "Show the chain flow"
 ```

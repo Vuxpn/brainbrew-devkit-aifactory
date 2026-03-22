@@ -11,34 +11,70 @@ description: >-
 
 ## Create Agent
 
-**Use MCP tool `create_agent`:**
+Write directly to `.claude/agents/{name}.md`:
 
+```markdown
+---
+name: agent-name
+description: >-
+  What this agent does. Be specific about when to use it.
+tools:
+  - Bash
+  - Read
+  - Edit
+  - Grep
+  - Glob
+skills:
+  - companion-skill-name
+---
+
+# Agent Name
+
+## Responsibilities
+
+1. First responsibility
+2. Second responsibility
+
+## Output Format
+
+[Expected output structure]
 ```
-mcp__brainbrew__create_agent(
-  name: "api-tester",
-  description: "Test API endpoints for correctness and performance",
-  tools: ["Bash", "Read", "WebFetch"],
-  instructions: "## Steps\n1. Read API spec\n2. Run tests\n3. Report results"
-)
-```
+
+**Always create a companion skill** at `.claude/skills/{name}/SKILL.md` with domain knowledge.
 
 ## List Agents
 
+```bash
+ls .claude/agents/*.md
 ```
-mcp__brainbrew__list_agents()
+
+## Add Agent to Chain Flow
+
+Edit `.claude/chain-config.yaml`, add to `flow:` section:
+
+```yaml
+flow:
+  new-agent:
+    routes:
+      next-agent: "Description of when to go here"
+      fallback-agent: "Description of fallback"
+    decide: |
+      If SUCCESS → "next-agent"
+      If FAILED → "fallback-agent"
 ```
 
-## Natural Language → MCP
+Then update the previous agent's routes to point to the new agent.
 
-| User says | MCP call |
-|-----------|----------|
-| "Create an agent for API testing" | `create_agent(name: "api-tester", ...)` |
-| "I need a documentation agent" | `create_agent(name: "doc-writer", ...)` |
-| "What agents do I have?" | `list_agents()` |
-| "Show my agents" | `list_agents()` |
+## Send Messages to Agent
 
-## After Creating Agent
+Use Memory Bus:
+```
+mcp__brainbrew__memory_add(content: "...", target: "agent:agent-name")
+```
 
-Tell user they can:
-1. Add agent to chain flow: `mcp__brainbrew__add_agent_to_flow`
-2. Send messages to it: `mcp__brainbrew__memory_add(target: "agent:NAME")`
+## Improve Existing Agent
+
+1. Read the agent file: `.claude/agents/{name}.md`
+2. Review description, tools, instructions
+3. Edit to improve clarity, add missing tools/skills
+4. Check companion skill exists and has good content

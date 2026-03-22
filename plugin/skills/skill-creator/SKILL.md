@@ -10,51 +10,59 @@ description: >-
 
 ## Create Skill
 
-**Use MCP tool `create_skill`:**
-
-```
-mcp__brainbrew__create_skill(
-  name: "deploy-aws",
-  description: "Deploy application to AWS. Trigger on 'deploy to aws', 'push to production'",
-  content: "## Steps\n1. Build app\n2. Push to S3\n3. Invalidate CloudFront"
-)
-```
-
-## List Skills
-
-```
-mcp__brainbrew__list_skills()
-```
-
-## Natural Language → MCP
-
-| User says | MCP call |
-|-----------|----------|
-| "Create a skill for deployment" | `create_skill(name: "deploy", ...)` |
-| "I need a database migration skill" | `create_skill(name: "db-migrate", ...)` |
-| "What skills do I have?" | `list_skills()` |
-| "Show my skills" | `list_skills()` |
-
-## Skill Structure
-
-Skills are markdown files in `.claude/skills/NAME/SKILL.md`:
+Write directly to `.claude/skills/{name}/SKILL.md`:
 
 ```markdown
 ---
 name: skill-name
 description: >-
-  When to trigger this skill. Use natural language patterns
-  like "deploy to X", "run Y", "create Z".
+  When to trigger this skill. Include natural language patterns:
+  "deploy to X", "run migrations", "test API endpoints".
 ---
 
 # Skill Name
 
-## Steps
-1. Step 1
-2. Step 2
+## Domain Knowledge
+
+[Specific knowledge the agent needs - architecture, patterns, conventions]
+
+## Procedures
+
+1. Step 1 - what to do
+2. Step 2 - what to do
 
 ## Commands
+
 \`\`\`bash
-# example commands
+# Common commands for this skill
 \`\`\`
+
+## References
+
+[Links to docs, specs, etc.]
+```
+
+## Key Principles
+
+1. **Description is critical** - Include natural language triggers
+2. **Domain knowledge** - What can't be derived from code
+3. **Procedures** - Step-by-step, not generic
+4. **Pair with agent** - Add skill name to agent's `skills:` frontmatter
+
+## List Skills
+
+```bash
+ls -d .claude/skills/*/
+```
+
+## Skill + Agent Pairing
+
+After creating a skill, attach it to the agent in `.claude/agents/{agent}.md`:
+
+```yaml
+---
+name: agent-name
+skills:
+  - your-new-skill   # ← add here
+---
 ```

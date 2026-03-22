@@ -1,6 +1,10 @@
 ---
 name: improve-agent
-description: Audit and improve Claude Code subagent definitions against official best practices. Use when user says "improve agent", "fix agent", "audit agents", "optimize agent", or wants to align agents with official subagent docs.
+description: >-
+  Create and improve agents. Trigger when user says:
+  "create an agent for X", "build me an agent", "I need an agent that does Y",
+  "make a code review agent", "create a testing agent", "improve my agent",
+  "fix agent", "audit agents", "optimize agent definition".
 argument-hint: [agent-name or agent-path]
 ---
 

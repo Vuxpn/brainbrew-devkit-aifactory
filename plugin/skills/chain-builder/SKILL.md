@@ -1,6 +1,11 @@
 ---
 name: chain-builder
-description: Bump workflow templates to project. Use when user says "bump [template]" where template is develop/devops/marketing/research/docs/support/data/moderation/review/minimal.
+description: >-
+  Set up workflow templates for projects. Trigger when user says:
+  "set up a workflow", "create a development workflow", "I need a CI/CD pipeline",
+  "set up devops", "initialize project workflow", "bump develop", "bump devops",
+  "create agent chain", "set up marketing workflow", "configure dev environment".
+  Templates: develop, devops, marketing, research, docs, support, data, moderation, review, minimal.
 argument-hint: "bump <template>"
 ---
 

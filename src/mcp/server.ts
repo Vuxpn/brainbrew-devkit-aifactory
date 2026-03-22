@@ -296,7 +296,17 @@ ${instructions || `## Responsibilities
 `;
 
         writeFileSync(agentPath, content);
-        return success(`✓ Created agent: ${agentPath}`);
+        return success(`✓ Created agent: ${agentPath}
+
+💡 **Tip:** Create a companion skill to make this agent more powerful!
+
+A skill provides:
+- Domain-specific knowledge the agent can reference
+- Step-by-step procedures
+- Commands and templates
+
+Say: "Create a skill for ${agentName}" or use:
+\`create_skill(name: "${agentName}", description: "...", content: "...")\``);
       }
 
       // ─── list_agents ───

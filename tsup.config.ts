@@ -13,6 +13,17 @@ export default defineConfig([
     splitting: false,
     noExternal: [/.*/],
   },
+  // MCP Server
+  {
+    entry: { 'mcp-server': 'src/mcp/server.ts' },
+    format: ['cjs'],
+    outDir: 'plugin/mcp',
+    banner: { js: '#!/usr/bin/env node' },
+    sourcemap: false,
+    minify: false,
+    splitting: false,
+    noExternal: [/.*/],
+  },
   // Hook entries → plugin/scripts/ for Claude Code plugin
   {
     entry: {

@@ -12,31 +12,39 @@ BrainBrew development toolkit — a Claude Code plugin providing agent chains, s
 ## Installation
 
 ```bash
-# Install from GitHub
 claude plugins install github:brainbrewlabs/brainbrew-devkit
-
-# Or install from local path (for development)
-claude plugins install /path/to/brainbrew-devkit/plugin
 ```
 
 ## Quick Start
 
-Just tell Claude what you want:
+Just tell Claude what you want in natural language:
 
 ```
-"Set up a development workflow for this project"
-"I need a CI/CD pipeline"
-"Help me create a content marketing workflow"
-"Create a custom agent for code review"
-"Build me a skill for database migrations"
+"Set up a development workflow"        → bump_template(develop)
+"I need a CI/CD pipeline"              → bump_template(devops)
+"Create an agent for API testing"      → create_agent(...)
+"Build me a deployment skill"          → create_skill(...)
+"Tell implementer to fix the bug"      → memory_add(target: agent:implementer)
+"What agents do I have?"               → list_agents()
 ```
 
-Or use slash commands:
-```bash
-/chain-builder bump develop
-/chain-builder bump devops
-/skill-creator
-```
+## MCP Tools
+
+All functionality exposed via MCP - no CLI install needed:
+
+| Tool | Description |
+|------|-------------|
+| `bump_template` | Set up workflow template |
+| `list_templates` | Show available templates |
+| `create_agent` | Create new agent |
+| `list_agents` | List project agents |
+| `create_skill` | Create new skill |
+| `list_skills` | List project skills |
+| `memory_add` | Send message to agents |
+| `memory_list` | List messages |
+| `memory_clear` | Clear messages |
+| `get_chain_flow` | Show chain config |
+| `add_agent_to_flow` | Add agent to chain |
 
 ## Workflow Templates
 

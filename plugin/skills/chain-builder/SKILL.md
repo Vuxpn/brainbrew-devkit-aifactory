@@ -5,57 +5,49 @@ description: >-
   "set up a workflow", "create a development workflow", "I need a CI/CD pipeline",
   "set up devops", "initialize project workflow", "bump develop", "bump devops",
   "create agent chain", "set up marketing workflow", "configure dev environment".
-  Templates: develop, devops, marketing, research, docs, support, data, moderation, review, minimal.
-argument-hint: "bump <template>"
 ---
 
 # Chain Builder
 
-## EXECUTE THIS EXACT BASH COMMAND
+## When user asks to set up a workflow:
 
-When user says "bump [template]", run this **single bash command** (replace TEMPLATE value):
+**Use MCP tool `bump_template`:**
 
-```bash
-TEMPLATE="devops" && PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT:-/Users/noroom113/company/brainbrewlabs/brainbrew-devkit/plugin}" && mkdir -p .claude/agents .claude/skills .claude/hooks && cp "$PLUGIN_ROOT/config/templates/$TEMPLATE/agents/"*.md .claude/agents/ 2>/dev/null; cp -r "$PLUGIN_ROOT/config/templates/$TEMPLATE/skills/"* .claude/skills/ 2>/dev/null; cp "$PLUGIN_ROOT/config/templates/$TEMPLATE.yaml" .claude/chain-config.yaml && echo "=== Bumped $TEMPLATE ===" && cat .claude/chain-config.yaml && echo "" && echo "Agents:" && ls .claude/agents/*.md 2>/dev/null
+```
+mcp__brainbrew__bump_template(template: "develop")
 ```
 
-## CRITICAL RULES
+## Template Options
 
-1. **USE BASH ONLY** - Do NOT use Write tool
-2. **SINGLE COMMAND** - Run everything in one bash call
-3. **USE `cp`** - Copy the YAML file, do NOT write new content
-4. The `cp` command copies the FULL config including `flow:` section with routes
+| Template | Description |
+|----------|-------------|
+| `develop` | Full dev chain: planner → implementer → tester → git |
+| `devops` | CI/CD: scanner → security → test → deploy → monitor |
+| `marketing` | Content: researcher → writer → editor → publisher |
+| `research` | Analysis: researcher → gatherer → analyzer → writer |
+| `docs` | Documentation: scanner → generator → reviewer → publish |
+| `support` | Support: classifier → router → responder → reviewer |
+| `data` | Data pipeline: collector → cleaner → analyzer → reporter |
+| `moderation` | Content mod: scanner → classifier → reviewer → actioner |
+| `review` | Simple code review only |
+| `minimal` | Empty - add your own |
 
-## Templates
+## Natural Language → Template
 
-`develop`, `devops`, `marketing`, `research`, `docs`, `support`, `data`, `moderation`, `review`, `minimal`
+| User says | Template |
+|-----------|----------|
+| "set up dev workflow" | develop |
+| "CI/CD pipeline" | devops |
+| "content marketing" | marketing |
+| "documentation workflow" | docs |
+| "start from scratch" | minimal |
 
-## What gets copied
-
-- `agents/*.md` → `.claude/agents/`
-- `skills/*` → `.claude/skills/`
-- `$TEMPLATE.yaml` → `.claude/chain-config.yaml` (has hooks + flow)
-
-## Next Steps - Customize Your Workflow
-
-After bumping a template, suggest these options to the user:
-
-| Want to... | Say this |
-|------------|----------|
-| Create a new agent | "Create an agent for [task]" → triggers `/improve-agent` |
-| Create a new skill | "Create a skill for [task]" → triggers `/skill-creator` |
-| Improve an agent | "Improve my [agent-name] agent" → triggers `/improve-agent` |
-| Improve a skill | "Improve my [skill-name] skill" → triggers `/skill-improver` |
-| Find more skills | "Find me a skill for [task]" → triggers `/skillhub` |
-
-## After Bump - Tell User
-
-After successfully bumping a template, tell the user:
+## After Setup - Tell User:
 
 ```
 Workflow set up! You can now:
-- "Create an agent for X" - add custom agents
-- "Create a skill for Y" - add custom skills
-- "Improve my [agent] agent" - enhance existing agents
-- "Find a skill for Z" - search SkillHub for more skills
+- "Create an agent for X" → mcp__brainbrew__create_agent
+- "Create a skill for Y" → mcp__brainbrew__create_skill
+- "Tell implementer to Z" → mcp__brainbrew__memory_add
+- "Show me the chain flow" → mcp__brainbrew__get_chain_flow
 ```

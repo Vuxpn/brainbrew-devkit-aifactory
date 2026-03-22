@@ -75,7 +75,7 @@ const TOOLS = [
   // ─── Agent Tools ───
   {
     name: 'create_agent',
-    description: 'Create a new agent in the project',
+    description: 'Create a new agent in the project. Always create a companion skill to make the agent more powerful.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -85,6 +85,11 @@ const TOOLS = [
           type: 'array',
           items: { type: 'string' },
           description: 'Tools the agent can use (e.g., ["Bash", "Read", "Edit"])',
+        },
+        skills: {
+          type: 'array',
+          items: { type: 'string' },
+          description: 'Skills to attach (e.g., ["api-testing", "deployment"]). Creates skill stubs if they don\'t exist.',
         },
         instructions: { type: 'string', description: 'Agent instructions/prompt' },
       },
@@ -270,43 +275,84 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         const agentName = args?.name as string;
         const description = args?.description as string;
         const tools = (args?.tools as string[]) || ['Bash', 'Read', 'Edit', 'Grep', 'Glob'];
+        const skills = (args?.skills as string[]) || [];
         const instructions = args?.instructions as string || '';
 
         const agentPath = join(cwd, '.claude/agents', `${agentName}.md`);
         mkdirSync(dirname(agentPath), { recursive: true });
 
-        const content = `---
+        // Build frontmatter
+        let frontmatter = `---
 name: ${agentName}
 description: >-
   ${description}
 tools:
-${tools.map(t => `  - ${t}`).join('\n')}
----
+${tools.map(t => `  - ${t}`).join('\n')}`;
 
-# ${agentName.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')} Agent
+        if (skills.length > 0) {
+          frontmatter += `\nskills:\n${skills.map(s => `  - ${s}`).join('\n')}`;
+        }
 
-${instructions || `## Responsibilities
+        frontmatter += '\n---';
+
+        const title = agentName.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+        const body = instructions || `## Responsibilities
 
 1. [Responsibility 1]
 2. [Responsibility 2]
 
 ## Output Format
 
-[Expected output structure]`}
-`;
+[Expected output structure]`;
 
+        const content = `${frontmatter}\n\n# ${title} Agent\n\n${body}\n`;
         writeFileSync(agentPath, content);
-        return success(`✓ Created agent: ${agentPath}
 
-💡 **Tip:** Create a companion skill to make this agent more powerful!
+        // Create skill stubs for skills that don't exist
+        const createdSkills: string[] = [];
+        for (const skill of skills) {
+          const skillDir = join(cwd, '.claude/skills', skill);
+          const skillFile = join(skillDir, 'SKILL.md');
+          if (!existsSync(skillFile)) {
+            mkdirSync(skillDir, { recursive: true });
+            writeFileSync(skillFile, `---
+name: ${skill}
+description: >-
+  Knowledge and procedures for ${title} agent.
+  Provides domain-specific context and step-by-step workflows.
+---
 
-A skill provides:
-- Domain-specific knowledge the agent can reference
-- Step-by-step procedures
-- Commands and templates
+# ${skill.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')}
 
-Say: "Create a skill for ${agentName}" or use:
-\`create_skill(name: "${agentName}", description: "...", content: "...")\``);
+## Domain Knowledge
+
+[Add domain-specific knowledge here]
+
+## Procedures
+
+1. [Step 1]
+2. [Step 2]
+
+## References
+
+[Add reference links, docs, etc.]
+`);
+            createdSkills.push(skill);
+          }
+        }
+
+        let result = `✓ Created agent: ${agentPath}`;
+        if (skills.length > 0) {
+          result += `\n  Skills attached: ${skills.join(', ')}`;
+        }
+        if (createdSkills.length > 0) {
+          result += `\n  Skill stubs created: ${createdSkills.join(', ')} (fill in domain knowledge!)`;
+        }
+        if (skills.length === 0) {
+          result += `\n\n💡 Tip: Add skills to make this agent stronger!\n  Use: create_agent(... skills: ["${agentName}"])`;
+        }
+
+        return success(result);
       }
 
       // ─── list_agents ───

@@ -20953,7 +20953,7 @@ var TOOLS = [
   // ─── Agent Tools ───
   {
     name: "create_agent",
-    description: "Create a new agent in the project",
+    description: "Create a new agent in the project. Always create a companion skill to make the agent more powerful.",
     inputSchema: {
       type: "object",
       properties: {
@@ -20963,6 +20963,11 @@ var TOOLS = [
           type: "array",
           items: { type: "string" },
           description: 'Tools the agent can use (e.g., ["Bash", "Read", "Edit"])'
+        },
+        skills: {
+          type: "array",
+          items: { type: "string" },
+          description: `Skills to attach (e.g., ["api-testing", "deployment"]). Creates skill stubs if they don't exist.`
         },
         instructions: { type: "string", description: "Agent instructions/prompt" }
       },
@@ -21129,40 +21134,85 @@ ${info}`);
         const agentName = args?.name;
         const description = args?.description;
         const tools = args?.tools || ["Bash", "Read", "Edit", "Grep", "Glob"];
+        const skills = args?.skills || [];
         const instructions = args?.instructions || "";
         const agentPath = (0, import_path2.join)(cwd, ".claude/agents", `${agentName}.md`);
         (0, import_fs2.mkdirSync)((0, import_path2.dirname)(agentPath), { recursive: true });
-        const content = `---
+        let frontmatter = `---
 name: ${agentName}
 description: >-
   ${description}
 tools:
-${tools.map((t) => `  - ${t}`).join("\n")}
----
-
-# ${agentName.split("-").map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(" ")} Agent
-
-${instructions || `## Responsibilities
+${tools.map((t) => `  - ${t}`).join("\n")}`;
+        if (skills.length > 0) {
+          frontmatter += `
+skills:
+${skills.map((s) => `  - ${s}`).join("\n")}`;
+        }
+        frontmatter += "\n---";
+        const title = agentName.split("-").map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(" ");
+        const body = instructions || `## Responsibilities
 
 1. [Responsibility 1]
 2. [Responsibility 2]
 
 ## Output Format
 
-[Expected output structure]`}
+[Expected output structure]`;
+        const content = `${frontmatter}
+
+# ${title} Agent
+
+${body}
 `;
         (0, import_fs2.writeFileSync)(agentPath, content);
-        return success2(`\u2713 Created agent: ${agentPath}
+        const createdSkills = [];
+        for (const skill of skills) {
+          const skillDir = (0, import_path2.join)(cwd, ".claude/skills", skill);
+          const skillFile = (0, import_path2.join)(skillDir, "SKILL.md");
+          if (!(0, import_fs2.existsSync)(skillFile)) {
+            (0, import_fs2.mkdirSync)(skillDir, { recursive: true });
+            (0, import_fs2.writeFileSync)(skillFile, `---
+name: ${skill}
+description: >-
+  Knowledge and procedures for ${title} agent.
+  Provides domain-specific context and step-by-step workflows.
+---
 
-\u{1F4A1} **Tip:** Create a companion skill to make this agent more powerful!
+# ${skill.split("-").map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(" ")}
 
-A skill provides:
-- Domain-specific knowledge the agent can reference
-- Step-by-step procedures
-- Commands and templates
+## Domain Knowledge
 
-Say: "Create a skill for ${agentName}" or use:
-\`create_skill(name: "${agentName}", description: "...", content: "...")\``);
+[Add domain-specific knowledge here]
+
+## Procedures
+
+1. [Step 1]
+2. [Step 2]
+
+## References
+
+[Add reference links, docs, etc.]
+`);
+            createdSkills.push(skill);
+          }
+        }
+        let result = `\u2713 Created agent: ${agentPath}`;
+        if (skills.length > 0) {
+          result += `
+  Skills attached: ${skills.join(", ")}`;
+        }
+        if (createdSkills.length > 0) {
+          result += `
+  Skill stubs created: ${createdSkills.join(", ")} (fill in domain knowledge!)`;
+        }
+        if (skills.length === 0) {
+          result += `
+
+\u{1F4A1} Tip: Add skills to make this agent stronger!
+  Use: create_agent(... skills: ["${agentName}"])`;
+        }
+        return success2(result);
       }
       // ─── list_agents ───
       case "list_agents": {

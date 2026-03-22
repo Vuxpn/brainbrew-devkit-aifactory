@@ -38,7 +38,6 @@ All functionality exposed via MCP - no CLI install needed:
 | `list_templates` | Show available templates |
 | `create_agent` | Create new agent |
 | `list_agents` | List project agents |
-| `create_skill` | Create new skill |
 | `list_skills` | List project skills |
 | `memory_add` | Send message to agents |
 | `memory_list` | List messages |

@@ -20981,19 +20981,6 @@ var TOOLS = [
   },
   // ─── Skill Tools ───
   {
-    name: "create_skill",
-    description: "Create a new skill in the project",
-    inputSchema: {
-      type: "object",
-      properties: {
-        name: { type: "string", description: 'Skill name (e.g., "deploy-aws")' },
-        description: { type: "string", description: "When to trigger this skill" },
-        content: { type: "string", description: "Skill instructions in markdown" }
-      },
-      required: ["name", "description"]
-    }
-  },
-  {
     name: "list_skills",
     description: "List all skills in the current project",
     inputSchema: { type: "object", properties: {} }
@@ -21229,33 +21216,6 @@ description: >-
         return success2(`Agents (${agents.length}):
 
 ${agents.join("\n")}`);
-      }
-      // ─── create_skill ───
-      case "create_skill": {
-        const skillName = args?.name;
-        const description = args?.description;
-        const content = args?.content || "";
-        const skillDir = (0, import_path2.join)(cwd, ".claude/skills", skillName);
-        (0, import_fs2.mkdirSync)(skillDir, { recursive: true });
-        const skillContent = `---
-name: ${skillName}
-description: >-
-  ${description}
----
-
-# ${skillName.split("-").map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(" ")}
-
-${content || `## Steps
-
-1. [Step 1]
-2. [Step 2]
-
-## Output
-
-[Expected output]`}
-`;
-        (0, import_fs2.writeFileSync)((0, import_path2.join)(skillDir, "SKILL.md"), skillContent);
-        return success2(`\u2713 Created skill: ${skillDir}/SKILL.md`);
       }
       // ─── list_skills ───
       case "list_skills": {

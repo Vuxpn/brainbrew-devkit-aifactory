@@ -104,19 +104,6 @@ const TOOLS = [
 
   // ─── Skill Tools ───
   {
-    name: 'create_skill',
-    description: 'Create a new skill in the project',
-    inputSchema: {
-      type: 'object',
-      properties: {
-        name: { type: 'string', description: 'Skill name (e.g., "deploy-aws")' },
-        description: { type: 'string', description: 'When to trigger this skill' },
-        content: { type: 'string', description: 'Skill instructions in markdown' },
-      },
-      required: ['name', 'description'],
-    },
-  },
-  {
     name: 'list_skills',
     description: 'List all skills in the current project',
     inputSchema: { type: 'object', properties: {} },
@@ -372,37 +359,6 @@ description: >-
           });
 
         return success(`Agents (${agents.length}):\n\n${agents.join('\n')}`);
-      }
-
-      // ─── create_skill ───
-      case 'create_skill': {
-        const skillName = args?.name as string;
-        const description = args?.description as string;
-        const content = args?.content as string || '';
-
-        const skillDir = join(cwd, '.claude/skills', skillName);
-        mkdirSync(skillDir, { recursive: true });
-
-        const skillContent = `---
-name: ${skillName}
-description: >-
-  ${description}
----
-
-# ${skillName.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')}
-
-${content || `## Steps
-
-1. [Step 1]
-2. [Step 2]
-
-## Output
-
-[Expected output]`}
-`;
-
-        writeFileSync(join(skillDir, 'SKILL.md'), skillContent);
-        return success(`✓ Created skill: ${skillDir}/SKILL.md`);
       }
 
       // ─── list_skills ───

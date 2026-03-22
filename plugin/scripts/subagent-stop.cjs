@@ -221,10 +221,13 @@ var BACKUP_DIR = (0, import_path2.join)(CHAINS_DIR, ".backup");
 var AGENTS_DIR = (0, import_path2.join)(CLAUDE_DIR, "agents");
 var SKILLS_DIR = (0, import_path2.join)(CLAUDE_DIR, "skills");
 var HOOKS_DIR = (0, import_path2.join)(CLAUDE_DIR, "hooks", "chains");
+var CUSTOM_HOOKS_DIR = (0, import_path2.join)(HOOKS_DIR, "custom");
 var TMP_DIR = (0, import_path2.join)(CLAUDE_DIR, "tmp");
+var PROJECTS_DIR = (0, import_path2.join)(CLAUDE_DIR, "projects");
 var SETTINGS_FILE = (0, import_path2.join)(CLAUDE_DIR, "settings.json");
 var CHAIN_CONFIG_FILE = (0, import_path2.join)(HOOKS_DIR, "chain-config.json");
 var VERIFICATION_RULES_FILE = (0, import_path2.join)(HOOKS_DIR, "verification-rules.json");
+var HOOKS_CONFIG_FILE = (0, import_path2.join)(HOOKS_DIR, "hooks-config.yaml");
 var CHAIN_EVENTS_LOG = (0, import_path2.join)(TMP_DIR, "chain-events.jsonl");
 
 // src/utils/logger.ts

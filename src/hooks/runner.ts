@@ -3,13 +3,13 @@
  * Hook Runner — Single entry point for all Claude Code hooks.
  *
  * settings.json points here with event name as arg:
- *   "command": "node ~/.claude-chain/hooks/runner.js PostToolUse"
- *   "command": "node ~/.claude-chain/hooks/runner.js SubagentStop"
+ *   "command": "node ~/.claude/hooks/chains/runner.js PostToolUse"
  *
- * Runner reads config.yaml, finds all hooks for the event, runs them sequentially.
- * If any hook outputs JSON (exit 2) or blocks (decision: block), that result is used.
+ * Runner loads:
+ *   1. Global hooks from ~/.claude/hooks/chains/hooks-config.yaml
+ *   2. Per-project hooks from ~/.claude/projects/{encoded-cwd}/chain-config.yaml
  *
- * Supports ALL 22 Claude Code hook events.
+ * Hooks run sequentially. If any hook outputs JSON (exit 2) or blocks, that result is used.
  */
 
 import { readFileSync, existsSync } from 'fs';
@@ -17,14 +17,21 @@ import { join } from 'path';
 import { execSync } from 'child_process';
 import { homedir } from 'os';
 
-const CHAIN_HOME = join(homedir(), '.claude-chain');
-const CONFIG_FILE = join(CHAIN_HOME, 'config.yaml');
+const HOME = homedir();
+const CLAUDE_DIR = join(HOME, '.claude');
+const HOOKS_DIR = join(CLAUDE_DIR, 'hooks', 'chains');
+const GLOBAL_CONFIG = join(HOOKS_DIR, 'hooks-config.yaml');
+const PROJECTS_DIR = join(CLAUDE_DIR, 'projects');
 
 interface HookConfig {
   hooks: Record<string, string[]>;
 }
 
-function parseConfig(content: string): HookConfig {
+function encodeCwd(cwd: string): string {
+  return cwd.replace(/\//g, '-');
+}
+
+function parseYamlConfig(content: string): HookConfig {
   const config: HookConfig = { hooks: {} };
   let currentEvent = '';
 
@@ -43,82 +50,32 @@ function parseConfig(content: string): HookConfig {
   return config;
 }
 
-function main(): void {
-  const eventArg = process.argv[2];
-  if (!eventArg) {
-    console.error('Usage: runner.js <EventName>');
-    process.exit(0);
-  }
-
-  // Read stdin once
-  let stdin = '';
-  try {
-    stdin = readFileSync(0, 'utf-8').trim();
-  } catch {
-    process.exit(0);
-  }
-  if (!stdin) process.exit(0);
-
-  // Load config
-  if (!existsSync(CONFIG_FILE)) {
-    // Fallback: try built-in hook directly
-    const builtinPath = join(CHAIN_HOME, 'hooks', `${eventArg}.js`);
-    if (existsSync(builtinPath)) {
-      runHook(builtinPath, stdin);
-    }
-    process.exit(0);
-  }
-
-  const config = parseConfig(readFileSync(CONFIG_FILE, 'utf-8'));
-  const hooks = config.hooks[eventArg] || [];
-
-  if (hooks.length === 0) process.exit(0);
-
-  // Run hooks sequentially
-  for (const hookPath of hooks) {
-    const fullPath = hookPath.startsWith('/')
-      ? hookPath
-      : join(CHAIN_HOME, hookPath);
-
-    if (!existsSync(fullPath)) {
-      console.error(`[runner] Hook not found: ${fullPath}`);
-      continue;
-    }
-
-    try {
-      const result = execSync(`node "${fullPath}"`, {
-        input: stdin,
-        encoding: 'utf-8',
-        timeout: 60000,
-        maxBuffer: 10 * 1024 * 1024,
-        stdio: ['pipe', 'pipe', 'pipe'],
-      });
-
-      const trimmed = result.trim();
-      if (trimmed) {
-        try {
-          const parsed = JSON.parse(trimmed);
-          // Block decision stops chain immediately
-          if (parsed.decision === 'block') {
-            console.log(trimmed);
-            process.exit(0);
-          }
-        } catch { /* not JSON, continue */ }
-        console.log(trimmed);
-      }
-    } catch (err: unknown) {
-      const e = err as { status?: number; stdout?: string; stderr?: string };
-      // Exit code 2 = hook has output for Claude
-      if (e.status === 2 && e.stdout) {
-        console.log(e.stdout.trim());
-        process.exit(2);
-      }
-      if (e.stderr) console.error(e.stderr);
-    }
-  }
+function loadGlobalHooks(event: string): string[] {
+  if (!existsSync(GLOBAL_CONFIG)) return [];
+  const config = parseYamlConfig(readFileSync(GLOBAL_CONFIG, 'utf-8'));
+  return (config.hooks[event] || []).map(h =>
+    h.startsWith('/') ? h : join(HOOKS_DIR, h)
+  );
 }
 
-function runHook(hookPath: string, stdin: string): void {
+function loadProjectHooks(event: string, cwd: string): string[] {
+  const projectDir = join(PROJECTS_DIR, encodeCwd(cwd));
+  const configFile = join(projectDir, 'chain-config.yaml');
+
+  if (!existsSync(configFile)) return [];
+
+  const config = parseYamlConfig(readFileSync(configFile, 'utf-8'));
+  return (config.hooks[event] || []).map(h =>
+    h.startsWith('/') ? h : join(projectDir, h)
+  );
+}
+
+function runHook(hookPath: string, stdin: string): { output?: string; block?: boolean; exit2?: boolean } {
+  if (!existsSync(hookPath)) {
+    console.error(`[runner] Hook not found: ${hookPath}`);
+    return {};
+  }
+
   try {
     const result = execSync(`node "${hookPath}"`, {
       input: stdin,
@@ -127,12 +84,83 @@ function runHook(hookPath: string, stdin: string): void {
       maxBuffer: 10 * 1024 * 1024,
       stdio: ['pipe', 'pipe', 'pipe'],
     });
-    if (result.trim()) console.log(result.trim());
+
+    const trimmed = result.trim();
+    if (trimmed) {
+      try {
+        const parsed = JSON.parse(trimmed);
+        if (parsed.decision === 'block') {
+          return { output: trimmed, block: true };
+        }
+      } catch { /* not JSON */ }
+      return { output: trimmed };
+    }
   } catch (err: unknown) {
-    const e = err as { status?: number; stdout?: string };
+    const e = err as { status?: number; stdout?: string; stderr?: string };
     if (e.status === 2 && e.stdout) {
-      console.log(e.stdout.trim());
+      return { output: e.stdout.trim(), exit2: true };
+    }
+    if (e.stderr) console.error(e.stderr);
+  }
+
+  return {};
+}
+
+function main(): void {
+  const eventArg = process.argv[2];
+  if (!eventArg) {
+    console.error('Usage: runner.js <EventName>');
+    process.exit(0);
+  }
+
+  // Read stdin
+  let stdin = '';
+  try {
+    stdin = readFileSync(0, 'utf-8').trim();
+  } catch {
+    process.exit(0);
+  }
+  if (!stdin) process.exit(0);
+
+  // Extract CWD from payload for per-project hooks
+  let cwd = process.cwd();
+  try {
+    const payload = JSON.parse(stdin);
+    if (payload.cwd) cwd = payload.cwd;
+  } catch { /* use process.cwd */ }
+
+  // Collect hooks: global first, then per-project
+  const globalHooks = loadGlobalHooks(eventArg);
+  const projectHooks = loadProjectHooks(eventArg, cwd);
+  const allHooks = [...globalHooks, ...projectHooks];
+
+  if (allHooks.length === 0) {
+    // Fallback: try built-in hook directly
+    const builtinPath = join(HOOKS_DIR, `${eventArg.toLowerCase()}.js`);
+    if (existsSync(builtinPath)) {
+      const result = runHook(builtinPath, stdin);
+      if (result.output) console.log(result.output);
+      if (result.exit2) process.exit(2);
+    }
+    process.exit(0);
+  }
+
+  // Run hooks sequentially
+  for (const hookPath of allHooks) {
+    const result = runHook(hookPath, stdin);
+
+    if (result.block) {
+      console.log(result.output);
+      process.exit(0);
+    }
+
+    if (result.exit2) {
+      console.log(result.output);
       process.exit(2);
+    }
+
+    if (result.output) {
+      console.log(result.output);
     }
   }
 }

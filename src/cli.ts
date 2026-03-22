@@ -36,12 +36,12 @@ function parseArgs(argv: string[]): { command: string; args: string[]; flags: Re
 }
 
 function printHelp(): void {
-  console.log(`claude-chain v${VERSION}
+  console.log(`brainbrew v${VERSION}
 
-Usage: claude-chain <command> [options]
+Usage: brainbrew <command> [options]
 
 Commands:
-  init                          Setup hooks and runner in ~/.claude-chain/
+  init                          Setup hooks and runner in ~/.claude/
   show [chain]                  Display chain diagram
   list                          List available chains
   test [chain]                  Validate chain topology
@@ -51,9 +51,13 @@ Commands:
   remove --name X               Remove agent from chain
   link --from X --to Y          Set routing between agents
   export --name N               Export current config to YAML
-  hook list                     List registered hooks
+  hook <subcommand>             Manage hooks (global and per-project)
+
+Hook subcommands:
+  hook list                     List global hooks
   hook scaffold --name X        Create custom hook template
-  hook enable/disable           Enable or disable a hook
+  hook project-list             List per-project hooks
+  hook project-add --name X     Create per-project hook
 
 Options:
   --format json|text            Output format (default: text)

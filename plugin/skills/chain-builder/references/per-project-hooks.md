@@ -48,6 +48,18 @@ Supported events: `PostToolUse`, `SubagentStart`, `SubagentStop`, `Stop`
 
 Paths are relative to the project dir (`~/.claude/projects/{encoded}/`).
 
+## Payload Schemas
+
+See `references/hook-payload-schemas.md` for detailed payload structure per event.
+
+Quick reference:
+- **PostToolUse**: `tool_name`, `tool_input`, `tool_response`
+- **SubagentStart**: `agent_type`, `agent_id`, `prompt`
+- **SubagentStop**: `agent_type`, `agent_id`, `last_assistant_message`
+- **Stop**: `last_assistant_message`
+
+All payloads include: `session_id`, `cwd`, `stop_hook_active`
+
 ## Hook Script Template
 
 ```javascript
@@ -65,8 +77,10 @@ function main() {
 
   const payload = JSON.parse(stdin);
 
+  // Skip if stop_hook_active (prevent infinite loops)
+  if (payload.stop_hook_active) process.exit(0);
+
   // --- Your hook logic here ---
-  // payload.tool_input, payload.tool_response, payload.cwd, etc.
 
   // To inject context into Claude's response:
   // console.log(JSON.stringify({
@@ -93,10 +107,40 @@ main();
 
 When user says "add a PostToolUse hook for linting":
 
+### Step 1: Gather Requirements
+
+Ask user to clarify:
+
+| Question | Why | Example Answer |
+|----------|-----|----------------|
+| What should trigger this hook? | Determine event + filter | "After implementer agent finishes" |
+| What should it check/do? | Define the logic | "Run eslint on changed files" |
+| What happens on failure? | Block vs warn vs inject | "Block and show errors" |
+| Hook name? | File naming | "lint-check" |
+
+### Step 2: Determine Event & Filter
+
+| User Intent | Event | Filter Logic |
+|-------------|-------|--------------|
+| "After agent X finishes" | `SubagentStop` | `payload.agent_type === 'X'` |
+| "Before agent X starts" | `SubagentStart` | `payload.agent_type === 'X'` |
+| "After any tool use" | `PostToolUse` | (no filter) |
+| "After Agent tool" | `PostToolUse` | `payload.tool_name === 'Agent'` |
+| "When session ends" | `Stop` | (no filter) |
+
+### Step 3: Generate Script
+
+Based on gathered requirements, generate script with:
+- Correct event filter
+- User's logic implemented
+- Appropriate output behavior (block/warn/inject)
+
+### Step 4: Create Files
+
 1. **Encode CWD** — `process.cwd()` → encoded path
 2. **Ensure directories** — `mkdir -p ~/.claude/projects/{encoded}/custom-hooks/`
 3. **Create/update chain-config.yaml** — add event + script path
-4. **Create hook script** — from template above with user's logic
+4. **Create hook script** — from template with user's logic
 5. **Show confirmation** — display file paths and test command
 
 ## How chain-builder Lists Hooks

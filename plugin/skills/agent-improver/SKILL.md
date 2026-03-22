@@ -1,5 +1,5 @@
 ---
-name: improve-agent
+name: agent-improver
 description: >-
   Create and improve agents. Trigger when user says:
   "create an agent for X", "build me an agent", "I need an agent that does Y",

@@ -2,84 +2,77 @@
 
 AI-powered development toolkit for Claude Code — customizable agent chains, modular skills, and automated workflow orchestration.
 
-## What This Plugin Provides
+## Installation
 
-### Always Available (Plugin Scope)
-
-**5 Management Skills:**
-- `chain-builder` — build/manage agent chains + hooks
-- `skill-creator` — create new skills
-- `skill-improver` — improve existing skills
-- `improve-agent` — improve agent definitions
-- `skillhub` — search and install skills from SkillHub
-
-**2 Management Agents:**
-- `skill-reviewer` — review skill quality
-- `skillhub-manager` — search skills from SkillHub
-
-### Templates (Bump to Project)
-
-Use `/chain-builder bump <template>` to initialize a project with a workflow.
-
-| Template | Agents | Skills | Description |
-|----------|--------|--------|-------------|
-| `develop` | 21 | 8 | Full dev chain (planner → tester → git) |
-| `review` | 1 | 1 | Code review focused |
-| `minimal` | 0 | 0 | Clean slate |
-
-**develop template includes:**
-- Agents: planner, plan-reviewer, implementer, code-reviewer, tester, git-manager, debugger, researcher, scout, brainstormer, docs-manager, and more
-- Skills: plan, code, git-commit, systematic-debugging, brainstorming, sequential-thinking
+```bash
+# Install from GitHub
+claude plugins install github:brainbrewlabs/brainbrew-devkit
+```
 
 ## Quick Start
 
 ```bash
-# Initialize project with develop workflow
+# Initialize project with a workflow template
 /chain-builder bump develop
 ```
 
-This creates:
+## Workflow Templates
+
+| Template | Agents | Skills | Chain |
+|----------|--------|--------|-------|
+| **develop** | 22 | 22 | planner → plan-reviewer → implementer → code-reviewer → tester → git-manager |
+| **devops** | 10 | 10 | code-scanner → security-auditor → test-runner → deployer → monitor |
+| **marketing** | 6 | 6 | researcher → content-writer → editor → seo-optimizer → publisher → analyzer |
+| **research** | 5 | 5 | topic-researcher → source-gatherer → analyzer → synthesizer → report-writer |
+| **docs** | 5 | 5 | code-scanner → doc-generator → doc-reviewer → formatter → publisher |
+| **support** | 5 | 5 | ticket-classifier → router → knowledge-searcher → response-drafter → reviewer |
+| **data** | 5 | 5 | data-collector → cleaner → analyzer → visualizer → reporter |
+| **moderation** | 5 | 5 | content-scanner → classifier → flagger → reviewer → actioner |
+| **review** | 1 | 1 | code-reviewer → END |
+| **minimal** | 0 | 0 | hooks only (add your own) |
+
+## AI-Powered Routing
+
+Each template includes intelligent routing rules:
+
+```yaml
+flow:
+  code-reviewer:
+    routes:
+      tester: "Code approved"
+      implementer: "Code has issues"
+      security-scan: "Security concerns"
+    decide: |
+      If code is APPROVED → "tester"
+      If ANY bugs, issues → "implementer"
+      If security vulnerabilities → "security-scan"
 ```
-{cwd}/
-  .claude/
-    chain-config.yaml    # Hook configuration
-    agents/              # 21 agents copied
-    skills/              # 8 skills copied
-```
+
+The `decide:` prompt is sent to Haiku AI to analyze agent output and pick the next agent.
+
+## Always Available (Plugin Scope)
+
+**Management Skills:**
+- `chain-builder` — bump workflow templates
+- `skill-creator` — create new skills
+- `skill-improver` — improve existing skills
+- `improve-agent` — improve agent definitions
+- `skillhub` — search and install skills
+
+**Management Agents:**
+- `skill-reviewer` — review skill quality
+- `skillhub-manager` — search skills from SkillHub
 
 ## How It Works
 
-1. **Plugin hooks** (always active) route events to `runner.cjs`
-2. **runner.cjs** reads `{cwd}/.claude/chain-config.yaml`
-3. **Scripts** execute based on config (plugin: or local ./)
-4. **Agents/skills** in `.claude/` are used by Claude
-
-## Per-Project Hooks
-
-### chain-config.yaml
-
-```yaml
-hooks:
-  PostToolUse:
-    - plugin:post-agent.cjs      # From plugin/scripts/
-    - ./my-hook.js               # From .claude/hooks/
-  SubagentStart:
-    - plugin:subagent-start.cjs
-  SubagentStop:
-    - plugin:subagent-stop.cjs
-```
-
-### Add Custom Hook
-
-1. Create `.claude/hooks/my-hook.js`
-2. Add `./my-hook.js` to `.claude/chain-config.yaml`
+1. `/chain-builder bump <template>` copies agents, skills, and config to `{cwd}/.claude/`
+2. **Plugin hooks** route events through `runner.cjs`
+3. **post-agent.cjs** reads `decide:` prompt, calls Haiku, picks next agent
+4. Chain continues automatically until END
 
 ## Customization
 
-Everything is project-scoped:
+After bumping a template, customize in `.claude/`:
 - Edit agents in `.claude/agents/`
 - Edit skills in `.claude/skills/`
-- Add hooks in `.claude/hooks/`
-- Configure in `.claude/chain-config.yaml`
-
-Use `/chain-builder` for guided customization.
+- Modify flow in `.claude/chain-config.yaml`

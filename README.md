@@ -9,14 +9,25 @@ BrainBrew development toolkit — a Claude Code plugin providing agent chains, s
 - **Flexible flows** — Multiple routes per agent, conditional branching
 - **60+ agents** and **60+ skills** across all templates
 
+## Installation
+
+```bash
+# Install from GitHub
+claude plugins install github:brainbrewlabs/brainbrew-devkit
+
+# Or install from local path (for development)
+claude plugins install /path/to/brainbrew-devkit/plugin
+```
+
 ## Quick Start
 
 ```bash
-# Install plugin
-claude plugins install /path/to/brainbrew-devkit
-
-# Bump a template to your project
+# Bump a workflow template to your project
 /chain-builder bump develop
+
+# Or choose another template
+/chain-builder bump devops
+/chain-builder bump marketing
 ```
 
 ## Workflow Templates

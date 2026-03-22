@@ -1,0 +1,14 @@
+# Documentation workflow template
+# Chain: code-scanner → doc-generator → doc-reviewer → formatter → publisher
+#
+# Usage: /chain-builder bump docs
+#
+# For API documentation, README files, and technical writing.
+
+hooks:
+  PostToolUse:
+    - plugin:post-agent.cjs
+  SubagentStart:
+    - plugin:subagent-start.cjs
+  SubagentStop:
+    - plugin:subagent-stop.cjs

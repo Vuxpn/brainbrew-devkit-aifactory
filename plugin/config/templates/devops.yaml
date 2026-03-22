@@ -1,0 +1,14 @@
+# DevOps/CI-CD workflow template
+# Chain: code-scanner → security-auditor → test-runner → deployer → monitor
+#
+# Usage: /chain-builder bump devops
+#
+# For CI/CD pipelines, deployments, and infrastructure automation.
+
+hooks:
+  PostToolUse:
+    - plugin:post-agent.cjs
+  SubagentStart:
+    - plugin:subagent-start.cjs
+  SubagentStop:
+    - plugin:subagent-stop.cjs

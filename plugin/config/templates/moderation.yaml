@@ -1,0 +1,14 @@
+# Content Moderation workflow template
+# Chain: content-scanner → classifier → flagger → reviewer → actioner
+#
+# Usage: /chain-builder bump moderation
+#
+# For content moderation, trust & safety, and policy enforcement.
+
+hooks:
+  PostToolUse:
+    - plugin:post-agent.cjs
+  SubagentStart:
+    - plugin:subagent-start.cjs
+  SubagentStop:
+    - plugin:subagent-stop.cjs

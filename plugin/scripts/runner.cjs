@@ -5,15 +5,8 @@
 var import_fs = require("fs");
 var import_path = require("path");
 var import_child_process = require("child_process");
-var import_os = require("os");
-var HOME = (0, import_os.homedir)();
-var CLAUDE_DIR = (0, import_path.join)(HOME, ".claude");
-var HOOKS_DIR = (0, import_path.join)(CLAUDE_DIR, "hooks", "chains");
-var GLOBAL_CONFIG = (0, import_path.join)(HOOKS_DIR, "hooks-config.yaml");
-var PROJECTS_DIR = (0, import_path.join)(CLAUDE_DIR, "projects");
-function encodeCwd(cwd) {
-  return cwd.replace(/\//g, "-");
-}
+var PLUGIN_ROOT = process.env.CLAUDE_PLUGIN_ROOT || (0, import_path.dirname)((0, import_path.dirname)(__filename));
+var PLUGIN_SCRIPTS = (0, import_path.join)(PLUGIN_ROOT, "scripts");
 function parseYamlConfig(content) {
   const config = { hooks: {} };
   let currentEvent = "";
@@ -31,21 +24,25 @@ function parseYamlConfig(content) {
   }
   return config;
 }
-function loadGlobalHooks(event) {
-  if (!(0, import_fs.existsSync)(GLOBAL_CONFIG)) return [];
-  const config = parseYamlConfig((0, import_fs.readFileSync)(GLOBAL_CONFIG, "utf-8"));
-  return (config.hooks[event] || []).map(
-    (h) => h.startsWith("/") ? h : (0, import_path.join)(HOOKS_DIR, h)
-  );
+function resolveScriptPath(script, cwd) {
+  if (script.startsWith("plugin:")) {
+    return (0, import_path.join)(PLUGIN_SCRIPTS, script.replace("plugin:", ""));
+  }
+  if (script.startsWith("./") || script.startsWith("../")) {
+    return (0, import_path.join)(cwd, ".claude", "hooks", script.replace(/^\.\//, ""));
+  }
+  if (script.startsWith("/")) {
+    return script;
+  }
+  return (0, import_path.join)(PLUGIN_SCRIPTS, script);
 }
 function loadProjectHooks(event, cwd) {
-  const projectDir = (0, import_path.join)(PROJECTS_DIR, encodeCwd(cwd));
-  const configFile = (0, import_path.join)(projectDir, "chain-config.yaml");
-  if (!(0, import_fs.existsSync)(configFile)) return [];
-  const config = parseYamlConfig((0, import_fs.readFileSync)(configFile, "utf-8"));
-  return (config.hooks[event] || []).map(
-    (h) => h.startsWith("/") ? h : (0, import_path.join)(projectDir, h)
-  );
+  const configPath = (0, import_path.join)(cwd, ".claude", "chain-config.yaml");
+  if (!(0, import_fs.existsSync)(configPath)) {
+    return [];
+  }
+  const config = parseYamlConfig((0, import_fs.readFileSync)(configPath, "utf-8"));
+  return (config.hooks[event] || []).map((h) => resolveScriptPath(h, cwd));
 }
 function runHook(hookPath, stdin) {
   if (!(0, import_fs.existsSync)(hookPath)) {
@@ -83,7 +80,7 @@ function runHook(hookPath, stdin) {
 function main() {
   const eventArg = process.argv[2];
   if (!eventArg) {
-    console.error("Usage: runner.js <EventName>");
+    console.error("Usage: runner.cjs <EventName>");
     process.exit(0);
   }
   let stdin = "";
@@ -99,19 +96,11 @@ function main() {
     if (payload.cwd) cwd = payload.cwd;
   } catch {
   }
-  const globalHooks = loadGlobalHooks(eventArg);
-  const projectHooks = loadProjectHooks(eventArg, cwd);
-  const allHooks = [...globalHooks, ...projectHooks];
-  if (allHooks.length === 0) {
-    const builtinPath = (0, import_path.join)(HOOKS_DIR, `${eventArg.toLowerCase()}.js`);
-    if ((0, import_fs.existsSync)(builtinPath)) {
-      const result = runHook(builtinPath, stdin);
-      if (result.output) console.log(result.output);
-      if (result.exit2) process.exit(2);
-    }
+  const hooks = loadProjectHooks(eventArg, cwd);
+  if (hooks.length === 0) {
     process.exit(0);
   }
-  for (const hookPath of allHooks) {
+  for (const hookPath of hooks) {
     const result = runHook(hookPath, stdin);
     if (result.block) {
       console.log(result.output);

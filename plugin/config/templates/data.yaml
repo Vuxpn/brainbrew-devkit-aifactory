@@ -1,0 +1,14 @@
+# Data Pipeline workflow template
+# Chain: data-collector → cleaner → analyzer → visualizer → reporter
+#
+# Usage: /chain-builder bump data
+#
+# For ETL, data analysis, business intelligence, and reporting.
+
+hooks:
+  PostToolUse:
+    - plugin:post-agent.cjs
+  SubagentStart:
+    - plugin:subagent-start.cjs
+  SubagentStop:
+    - plugin:subagent-stop.cjs

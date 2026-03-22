@@ -2,33 +2,30 @@
 /**
  * Hook Runner — Single entry point for all Claude Code hooks.
  *
- * settings.json points here with event name as arg:
- *   "command": "node ~/.claude/hooks/chains/runner.js PostToolUse"
+ * Invoked by plugin's hooks.json with event name as arg:
+ *   "command": "node \"$CLAUDE_PLUGIN_ROOT/scripts/runner.cjs\" PostToolUse"
  *
- * Runner loads:
- *   1. Global hooks from ~/.claude/hooks/chains/hooks-config.yaml
- *   2. Per-project hooks from ~/.claude/projects/{encoded-cwd}/chain-config.yaml
+ * Runner loads hooks from project config:
+ *   ${cwd}/.claude/chain-config.yaml
  *
- * Hooks run sequentially. If any hook outputs JSON (exit 2) or blocks, that result is used.
+ * If no project config exists, no custom hooks run.
+ *
+ * Script path resolution:
+ *   - "plugin:foo.cjs"  → ${CLAUDE_PLUGIN_ROOT}/scripts/foo.cjs
+ *   - "./foo.js"        → ${cwd}/.claude/hooks/foo.js
+ *   - "/absolute/path"  → as-is
  */
 
 import { readFileSync, existsSync } from 'fs';
-import { join } from 'path';
+import { join, dirname } from 'path';
 import { execSync } from 'child_process';
-import { homedir } from 'os';
 
-const HOME = homedir();
-const CLAUDE_DIR = join(HOME, '.claude');
-const HOOKS_DIR = join(CLAUDE_DIR, 'hooks', 'chains');
-const GLOBAL_CONFIG = join(HOOKS_DIR, 'hooks-config.yaml');
-const PROJECTS_DIR = join(CLAUDE_DIR, 'projects');
+// Plugin root from env, fallback to script location
+const PLUGIN_ROOT = process.env.CLAUDE_PLUGIN_ROOT || dirname(dirname(__filename));
+const PLUGIN_SCRIPTS = join(PLUGIN_ROOT, 'scripts');
 
 interface HookConfig {
   hooks: Record<string, string[]>;
-}
-
-function encodeCwd(cwd: string): string {
-  return cwd.replace(/\//g, '-');
 }
 
 function parseYamlConfig(content: string): HookConfig {
@@ -50,24 +47,35 @@ function parseYamlConfig(content: string): HookConfig {
   return config;
 }
 
-function loadGlobalHooks(event: string): string[] {
-  if (!existsSync(GLOBAL_CONFIG)) return [];
-  const config = parseYamlConfig(readFileSync(GLOBAL_CONFIG, 'utf-8'));
-  return (config.hooks[event] || []).map(h =>
-    h.startsWith('/') ? h : join(HOOKS_DIR, h)
-  );
+function resolveScriptPath(script: string, cwd: string): string {
+  // Plugin scripts: "plugin:foo.cjs"
+  if (script.startsWith('plugin:')) {
+    return join(PLUGIN_SCRIPTS, script.replace('plugin:', ''));
+  }
+
+  // Local scripts: "./foo.js" or "../foo.js"
+  if (script.startsWith('./') || script.startsWith('../')) {
+    return join(cwd, '.claude', 'hooks', script.replace(/^\.\//, ''));
+  }
+
+  // Absolute paths: as-is
+  if (script.startsWith('/')) {
+    return script;
+  }
+
+  // Default: treat as plugin script name (backward compat)
+  return join(PLUGIN_SCRIPTS, script);
 }
 
 function loadProjectHooks(event: string, cwd: string): string[] {
-  const projectDir = join(PROJECTS_DIR, encodeCwd(cwd));
-  const configFile = join(projectDir, 'chain-config.yaml');
+  const configPath = join(cwd, '.claude', 'chain-config.yaml');
 
-  if (!existsSync(configFile)) return [];
+  if (!existsSync(configPath)) {
+    return [];
+  }
 
-  const config = parseYamlConfig(readFileSync(configFile, 'utf-8'));
-  return (config.hooks[event] || []).map(h =>
-    h.startsWith('/') ? h : join(projectDir, h)
-  );
+  const config = parseYamlConfig(readFileSync(configPath, 'utf-8'));
+  return (config.hooks[event] || []).map(h => resolveScriptPath(h, cwd));
 }
 
 function runHook(hookPath: string, stdin: string): { output?: string; block?: boolean; exit2?: boolean } {
@@ -109,7 +117,7 @@ function runHook(hookPath: string, stdin: string): { output?: string; block?: bo
 function main(): void {
   const eventArg = process.argv[2];
   if (!eventArg) {
-    console.error('Usage: runner.js <EventName>');
+    console.error('Usage: runner.cjs <EventName>');
     process.exit(0);
   }
 
@@ -122,31 +130,22 @@ function main(): void {
   }
   if (!stdin) process.exit(0);
 
-  // Extract CWD from payload for per-project hooks
+  // Extract CWD from payload
   let cwd = process.cwd();
   try {
     const payload = JSON.parse(stdin);
     if (payload.cwd) cwd = payload.cwd;
   } catch { /* use process.cwd */ }
 
-  // Collect hooks: global first, then per-project
-  const globalHooks = loadGlobalHooks(eventArg);
-  const projectHooks = loadProjectHooks(eventArg, cwd);
-  const allHooks = [...globalHooks, ...projectHooks];
+  // Load hooks from project config only (no global)
+  const hooks = loadProjectHooks(eventArg, cwd);
 
-  if (allHooks.length === 0) {
-    // Fallback: try built-in hook directly
-    const builtinPath = join(HOOKS_DIR, `${eventArg.toLowerCase()}.js`);
-    if (existsSync(builtinPath)) {
-      const result = runHook(builtinPath, stdin);
-      if (result.output) console.log(result.output);
-      if (result.exit2) process.exit(2);
-    }
+  if (hooks.length === 0) {
     process.exit(0);
   }
 
   // Run hooks sequentially
-  for (const hookPath of allHooks) {
+  for (const hookPath of hooks) {
     const result = runHook(hookPath, stdin);
 
     if (result.block) {

@@ -1,0 +1,11 @@
+# Minimal template - clean slate
+# No agents, skills, or hooks
+#
+# Usage: /chain-builder bump minimal
+#
+# Use this as a starting point for fully custom configurations.
+# Add your own agents to .claude/agents/
+# Add your own skills to .claude/skills/
+# Add hooks to .claude/chain-config.yaml
+
+hooks: {}

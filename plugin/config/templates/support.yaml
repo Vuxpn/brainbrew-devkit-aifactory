@@ -1,0 +1,14 @@
+# Customer Support workflow template
+# Chain: ticket-classifier → router → knowledge-searcher → response-drafter → reviewer
+#
+# Usage: /chain-builder bump support
+#
+# For customer support, helpdesk, and ticket management.
+
+hooks:
+  PostToolUse:
+    - plugin:post-agent.cjs
+  SubagentStart:
+    - plugin:subagent-start.cjs
+  SubagentStop:
+    - plugin:subagent-stop.cjs

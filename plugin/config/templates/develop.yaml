@@ -1,0 +1,20 @@
+# Development workflow template
+# Full agent chain: planner → plan-reviewer → implementer → code-reviewer → tester → git-manager
+#
+# Usage: /chain-builder bump develop
+#
+# This template includes:
+# - 21 agents in templates/develop/agents/
+# - 8 skills in templates/develop/skills/
+#
+# When bumped:
+# 1. Copies agents/ and skills/ to {cwd}/.claude/
+# 2. Writes chain-config.yaml to {cwd}/.claude/
+
+hooks:
+  PostToolUse:
+    - plugin:post-agent.cjs
+  SubagentStart:
+    - plugin:subagent-start.cjs
+  SubagentStop:
+    - plugin:subagent-stop.cjs

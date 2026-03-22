@@ -1,0 +1,14 @@
+# Research/Analysis workflow template
+# Chain: topic-researcher → source-gatherer → analyzer → synthesizer → report-writer
+#
+# Usage: /chain-builder bump research
+#
+# For academic research, market research, and technical investigation.
+
+hooks:
+  PostToolUse:
+    - plugin:post-agent.cjs
+  SubagentStart:
+    - plugin:subagent-start.cjs
+  SubagentStop:
+    - plugin:subagent-stop.cjs

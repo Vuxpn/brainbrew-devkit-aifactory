@@ -1,0 +1,14 @@
+# Marketing/Content workflow template
+# Chain: researcher → content-writer → editor → seo-optimizer → publisher → analyzer
+#
+# Usage: /chain-builder bump marketing
+#
+# For content marketing, social media, email campaigns, and SEO content.
+
+hooks:
+  PostToolUse:
+    - plugin:post-agent.cjs
+  SubagentStart:
+    - plugin:subagent-start.cjs
+  SubagentStop:
+    - plugin:subagent-stop.cjs

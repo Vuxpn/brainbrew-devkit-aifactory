@@ -20902,6 +20902,19 @@ function clear(options = {}) {
 }
 
 // src/mcp/server.ts
+function copyDirRecursive(src, dest) {
+  (0, import_fs2.mkdirSync)(dest, { recursive: true });
+  for (const entry of (0, import_fs2.readdirSync)(src)) {
+    const srcPath = (0, import_path2.join)(src, entry);
+    const destPath = (0, import_path2.join)(dest, entry);
+    const stat = (0, import_fs2.statSync)(srcPath);
+    if (stat.isDirectory()) {
+      copyDirRecursive(srcPath, destPath);
+    } else if (stat.isFile()) {
+      (0, import_fs2.copyFileSync)(srcPath, destPath);
+    }
+  }
+}
 var PLUGIN_ROOT = process.env.CLAUDE_PLUGIN_ROOT || (0, import_path2.dirname)((0, import_path2.dirname)((0, import_path2.dirname)(__filename)));
 var TEMPLATES_DIR = (0, import_path2.join)(PLUGIN_ROOT, "config", "templates");
 var server = new Server(
@@ -21082,11 +21095,10 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           (0, import_fs2.readdirSync)(skillsDir).forEach((skill) => {
             const src = (0, import_path2.join)(skillsDir, skill);
             const dest = (0, import_path2.join)(cwd, ".claude/skills", skill);
-            (0, import_fs2.mkdirSync)(dest, { recursive: true });
-            (0, import_fs2.readdirSync)(src).forEach((f) => {
-              (0, import_fs2.copyFileSync)((0, import_path2.join)(src, f), (0, import_path2.join)(dest, f));
-            });
-            skillCount++;
+            if ((0, import_fs2.statSync)(src).isDirectory()) {
+              copyDirRecursive(src, dest);
+              skillCount++;
+            }
           });
         }
         (0, import_fs2.copyFileSync)(templateYaml, (0, import_path2.join)(cwd, ".claude/chain-config.yaml"));

@@ -9,9 +9,25 @@ import {
   CallToolRequestSchema,
   ListToolsRequestSchema,
 } from '@modelcontextprotocol/sdk/types.js';
-import { readFileSync, writeFileSync, existsSync, mkdirSync, readdirSync, copyFileSync } from 'fs';
+import { readFileSync, writeFileSync, existsSync, mkdirSync, readdirSync, copyFileSync, statSync } from 'fs';
 import { join, dirname } from 'path';
 import { execSync } from 'child_process';
+
+// Recursive directory copy
+function copyDirRecursive(src: string, dest: string): void {
+  mkdirSync(dest, { recursive: true });
+  for (const entry of readdirSync(src)) {
+    const srcPath = join(src, entry);
+    const destPath = join(dest, entry);
+    const stat = statSync(srcPath);
+    if (stat.isDirectory()) {
+      copyDirRecursive(srcPath, destPath);
+    } else if (stat.isFile()) {
+      copyFileSync(srcPath, destPath);
+    }
+    // Skip symlinks, sockets, etc.
+  }
+}
 import { publish, list, clear } from '../memory/bus.js';
 import { MessageTarget, MessagePersistence, MessagePriority } from '../memory/types.js';
 
@@ -209,18 +225,17 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           });
         }
 
-        // Copy skills
+        // Copy skills (recursive to handle subdirectories)
         const skillsDir = join(templateDir, 'skills');
         let skillCount = 0;
         if (existsSync(skillsDir)) {
           readdirSync(skillsDir).forEach(skill => {
             const src = join(skillsDir, skill);
             const dest = join(cwd, '.claude/skills', skill);
-            mkdirSync(dest, { recursive: true });
-            readdirSync(src).forEach(f => {
-              copyFileSync(join(src, f), join(dest, f));
-            });
-            skillCount++;
+            if (statSync(src).isDirectory()) {
+              copyDirRecursive(src, dest);
+              skillCount++;
+            }
           });
         }
 

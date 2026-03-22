@@ -2,14 +2,6 @@
 # Full agent chain: planner → plan-reviewer → implementer → code-reviewer → tester → git-manager
 #
 # Usage: /chain-builder bump develop
-#
-# This template includes:
-# - 21 agents in templates/develop/agents/
-# - 8 skills in templates/develop/skills/
-#
-# When bumped:
-# 1. Copies agents/ and skills/ to {cwd}/.claude/
-# 2. Writes chain-config.yaml to {cwd}/.claude/
 
 hooks:
   PostToolUse:
@@ -18,3 +10,55 @@ hooks:
     - plugin:subagent-start.cjs
   SubagentStop:
     - plugin:subagent-stop.cjs
+
+flow:
+  planner:
+    routes:
+      plan-reviewer: "Plan created, ready for review"
+
+  plan-reviewer:
+    routes:
+      implementer: "Plan approved, ready to implement"
+      planner: "Plan has issues, needs revision"
+    decide: |
+      If plan is APPROVED, complete, ready for implementation → "implementer"
+      If plan has ISSUES, incomplete, needs revision, missing details → "planner"
+
+  implementer:
+    routes:
+      code-reviewer: "Code implemented, ready for review"
+
+  code-reviewer:
+    routes:
+      tester: "Code approved, ready for testing"
+      implementer: "Code has issues, needs fixes"
+      security-scan: "Security concerns found"
+    decide: |
+      If code is APPROVED with zero issues, clean → "tester"
+      If ANY bugs, issues, mismatches, wrong names, fixes needed → "implementer"
+      If security vulnerabilities, injection risks, exposed secrets → "security-scan"
+      IMPORTANT: Even if some checks pass, if there are ANY issues → "implementer"
+
+  tester:
+    routes:
+      git-manager: "All tests passed"
+      debugger: "Tests failed, needs debugging"
+    decide: |
+      If ALL tests PASS, no failures, no errors → "git-manager"
+      If ANY test FAILS, errors, bugs found → "debugger"
+
+  debugger:
+    routes:
+      implementer: "Bug diagnosed, ready to fix"
+
+  security-scan:
+    routes:
+      implementer: "Security issues found, needs fixes"
+      tester: "Security scan passed"
+    decide: |
+      If security scan PASSED, no vulnerabilities → "tester"
+      If ANY vulnerabilities found → "implementer"
+
+  git-manager:
+    routes:
+      END: "Chain complete"

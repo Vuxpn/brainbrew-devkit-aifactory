@@ -4,33 +4,226 @@ import { homedir } from 'os';
 import { callHaiku } from '../ai/haiku.js';
 import { getState, updateState } from '../utils/state.js';
 import { log, logEvent } from '../utils/logger.js';
-import { CHAIN_CONFIG_FILE, VERIFICATION_RULES_FILE, TMP_DIR } from '../utils/paths.js';
+import { TMP_DIR } from '../utils/paths.js';
 
 const LOG_FILE = join(TMP_DIR, 'agent-output.log');
 const PLANS_DIR = join(homedir(), '.claude', 'plans');
-const MAX_AGENT_LOOPS = 3; // Max times same agent can run in one session
+const MAX_AGENT_LOOPS = 3;
 
-// ─── Config ──────────────────────────────────────────────────────────────────
+// ─── Flow Config ─────────────────────────────────────────────────────────────
 
-interface AgentConfig {
-  chainNext?: string | null;
-  instructions?: string;
+interface FlowEntry {
+  routes?: Record<string, string>;  // agent-name → description
+  decide?: string;                   // AI prompt for routing decision
+  // Legacy support
+  next?: string | null;
+  on_issues?: string;
+  on_fail?: string;
 }
 
 interface ChainConfig {
-  agents: Record<string, AgentConfig>;
+  hooks?: Record<string, string[]>;
+  flow?: Record<string, FlowEntry>;
 }
 
-let CONFIG: ChainConfig = { agents: {} };
-try {
-  CONFIG = JSON.parse(readFileSync(CHAIN_CONFIG_FILE, 'utf-8')) as ChainConfig;
-} catch {
+function loadChainConfig(cwd: string): ChainConfig {
+  const configPath = join(cwd, '.claude', 'chain-config.yaml');
+  if (!existsSync(configPath)) return {};
+
   try {
-    const oldRules = JSON.parse(readFileSync(VERIFICATION_RULES_FILE, 'utf-8')) as Record<string, { chainNext?: string }>;
-    for (const [type, rule] of Object.entries(oldRules)) {
-      CONFIG.agents[type] = { chainNext: rule.chainNext };
+    const content = readFileSync(configPath, 'utf-8');
+    return parseSimpleYaml(content);
+  } catch {
+    return {};
+  }
+}
+
+function parseSimpleYaml(content: string): ChainConfig {
+  const config: ChainConfig = { flow: {} };
+  let currentSection = '';
+  let currentAgent = '';
+  let currentSubSection = '';  // 'routes' or ''
+  let multilineKey = '';
+  let multilineValue = '';
+  let multilineIndent = 0;
+
+  const lines = content.split('\n');
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+
+    // Handle multiline continuation (for decide: |)
+    if (multilineKey && currentAgent) {
+      const lineIndent = line.search(/\S|$/);
+      if (lineIndent > multilineIndent || line.trim() === '') {
+        multilineValue += (multilineValue ? '\n' : '') + line.trim();
+        continue;
+      } else {
+        // End multiline, save value
+        (config.flow![currentAgent] as Record<string, string>)[multilineKey] = multilineValue;
+        multilineKey = '';
+        multilineValue = '';
+        multilineIndent = 0;
+      }
     }
-  } catch { /* no config */ }
+
+    // Skip comments and empty lines
+    if (line.trim().startsWith('#') || !line.trim()) continue;
+
+    // Top-level sections: hooks, flow
+    const sectionMatch = line.match(/^(\w+):$/);
+    if (sectionMatch) {
+      currentSection = sectionMatch[1];
+      currentAgent = '';
+      currentSubSection = '';
+      continue;
+    }
+
+    // Agent name in flow section (2 spaces indent)
+    if (currentSection === 'flow') {
+      const agentMatch = line.match(/^  (\S+):$/);
+      if (agentMatch) {
+        currentAgent = agentMatch[1];
+        currentSubSection = '';
+        config.flow![currentAgent] = {};
+        continue;
+      }
+
+      // Sub-section like "routes:" (4 spaces indent)
+      const subSectionMatch = line.match(/^    (routes):$/);
+      if (subSectionMatch && currentAgent) {
+        currentSubSection = subSectionMatch[1];
+        config.flow![currentAgent].routes = {};
+        continue;
+      }
+
+      // Route entries (6 spaces indent): "      tester: description"
+      if (currentSubSection === 'routes' && currentAgent) {
+        const routeMatch = line.match(/^      (\S+):\s*"?([^"]*)"?$/);
+        if (routeMatch) {
+          const [, routeAgent, description] = routeMatch;
+          config.flow![currentAgent].routes![routeAgent] = description.trim();
+          continue;
+        }
+      }
+
+      // Check for multiline start (key: |) at 4 spaces
+      const multilineMatch = line.match(/^    (\w+):\s*\|$/);
+      if (multilineMatch && currentAgent) {
+        currentSubSection = '';
+        multilineKey = multilineMatch[1];
+        multilineValue = '';
+        multilineIndent = 4;
+        continue;
+      }
+
+      // Simple properties at 4 spaces: next, on_issues, on_fail
+      const propMatch = line.match(/^    (\w+):\s*(.+)/);
+      if (propMatch && currentAgent && !currentSubSection) {
+        const [, key, value] = propMatch;
+        const cleanValue = value.trim() === 'null' ? null : value.trim();
+        (config.flow![currentAgent] as Record<string, string | null>)[key] = cleanValue;
+      }
+    }
+  }
+
+  // Handle trailing multiline
+  if (multilineKey && currentAgent && multilineValue) {
+    (config.flow![currentAgent] as Record<string, string>)[multilineKey] = multilineValue;
+  }
+
+  return config;
+}
+
+function getNextAgent(
+  agentType: string,
+  output: string,
+  config: ChainConfig
+): { next: string | null; reason: string } {
+  const flow = config.flow?.[agentType.toLowerCase()];
+  if (!flow) {
+    return { next: null, reason: 'No flow defined for this agent' };
+  }
+
+  // Build routes map - prefer new 'routes' format, fallback to legacy
+  const routes: Record<string, string> = flow.routes ?? {};
+  if (!flow.routes) {
+    // Legacy format support
+    if (flow.next) routes['next'] = flow.next;
+    if (flow.on_fail) routes['on_fail'] = flow.on_fail;
+    if (flow.on_issues) routes['on_issues'] = flow.on_issues;
+  }
+
+  const routeNames = Object.keys(routes);
+  const defaultNext = flow.next ?? routeNames[0] ?? null;
+
+  // If decide prompt exists and we have routes, use AI to route
+  if (flow.decide && output.length > 50 && routeNames.length > 0) {
+    // Build available routes description
+    const routesList = routeNames.map(name => {
+      const desc = routes[name];
+      return `- "${name}" → ${desc || name}`;
+    }).join('\n');
+
+    const prompt = `You are a chain router. Analyze the agent output and decide which agent to route to next.
+
+ROUTING RULES:
+${flow.decide}
+
+AVAILABLE ROUTES:
+${routesList}
+- "END" → Stop the chain (no next agent)
+
+AGENT OUTPUT:
+${output.substring(0, 2000)}
+
+Based on the routing rules and output, which route should be taken?
+Respond ONLY with JSON: {"route": "<agent-name or END>", "reason": "brief explanation"}`;
+
+    try {
+      const result = callHaiku(prompt);
+      if (result && !result['error']) {
+        const route = (result['route'] as string) || '';
+        const reason = (result['reason'] as string) || 'AI decision';
+
+        if (route === 'END' || route === 'end' || route === 'null') {
+          return { next: null, reason: `[AI] ${reason}` };
+        }
+
+        // Check if route is valid agent name
+        if (routes[route]) {
+          return { next: route, reason: `[AI] ${reason}` };
+        }
+
+        // Route might be the target agent name directly
+        if (routeNames.some(r => routes[r] === route)) {
+          return { next: route, reason: `[AI] ${reason}` };
+        }
+      }
+    } catch {
+      // Fall through to keyword matching
+    }
+  }
+
+  // Fallback: keyword-based routing
+  const outputLower = output.toLowerCase();
+  const hasIssues = outputLower.includes('issues') ||
+                    outputLower.includes('fail') ||
+                    outputLower.includes('error') ||
+                    outputLower.includes('bug');
+  const hasPassed = outputLower.includes('pass') ||
+                    outputLower.includes('approved') ||
+                    outputLower.includes('success');
+
+  if (hasIssues && !hasPassed) {
+    if (flow.on_fail) {
+      return { next: flow.on_fail, reason: 'Output indicates failure' };
+    }
+    if (flow.on_issues) {
+      return { next: flow.on_issues, reason: 'Output indicates issues' };
+    }
+  }
+
+  return { next: defaultNext, reason: 'Default next in flow' };
 }
 
 // ─── Phase Tracking ───────────────────────────────────────────────────────────
@@ -47,23 +240,6 @@ interface PhaseTracking {
   totalPhases: number;
   completedPhases: number;
   phases: Phase[];
-}
-
-interface PhaseProgress {
-  hasMore: boolean;
-  allComplete?: boolean;
-  currentPhase?: number;
-  totalPhases?: number;
-  nextPhase?: string;
-  planFile?: string;
-}
-
-interface PhaseInfo {
-  completedPhases: number;
-  totalPhases: number;
-  remainingPhases: number;
-  phases: Phase[];
-  planFile: string;
 }
 
 function extractPhases(planContent: string): Phase[] {
@@ -92,7 +268,6 @@ function extractPhases(planContent: string): Phase[] {
 function findRecentPlan(sessionId: string): string | null {
   const state = getState(sessionId);
   if (state?.phaseTracking) {
-    // phaseTracking.planFile lives in state
     const pt = state.phaseTracking as unknown as PhaseTracking;
     if (pt.planFile && existsSync(pt.planFile)) return pt.planFile;
   }
@@ -110,37 +285,30 @@ function findRecentPlan(sessionId: string): string | null {
   return files[0]?.path ?? null;
 }
 
-function initPhaseTracking(sessionId: string): PhaseTracking | null {
-  const planFile = findRecentPlan(sessionId);
-  if (!planFile) return null;
-
-  try {
-    const planContent = readFileSync(planFile, 'utf-8');
-    const phases = extractPhases(planContent);
-    if (phases.length <= 1) return null;
-
-    return {
-      planFile,
-      totalPhases: phases.length,
-      completedPhases: 0,
-      phases: phases.map(p => ({ ...p, completed: false })),
-    };
-  } catch {
-    return null;
-  }
-}
-
-function checkPhaseProgress(sessionId: string): PhaseProgress {
+function checkPhaseProgress(sessionId: string): { hasMore: boolean; allComplete?: boolean; currentPhase?: number; totalPhases?: number; nextPhase?: string; planFile?: string } {
   const rawState = getState(sessionId);
   const state = rawState as (typeof rawState & { phaseTracking?: PhaseTracking }) | null ?? {} as { phaseTracking?: PhaseTracking };
 
   let tracking = state.phaseTracking;
   if (!tracking) {
-    const init = initPhaseTracking(sessionId);
-    if (!init) return { hasMore: false };
+    const planFile = findRecentPlan(sessionId);
+    if (!planFile) return { hasMore: false };
 
-    tracking = init;
-    updateState(sessionId, { phaseTracking: tracking as unknown as Parameters<typeof updateState>[1]['phaseTracking'] });
+    try {
+      const planContent = readFileSync(planFile, 'utf-8');
+      const phases = extractPhases(planContent);
+      if (phases.length <= 1) return { hasMore: false };
+
+      tracking = {
+        planFile,
+        totalPhases: phases.length,
+        completedPhases: 0,
+        phases: phases.map(p => ({ ...p, completed: false })),
+      };
+      updateState(sessionId, { phaseTracking: tracking as unknown as Parameters<typeof updateState>[1]['phaseTracking'] });
+    } catch {
+      return { hasMore: false };
+    }
   }
 
   tracking.completedPhases++;
@@ -163,84 +331,18 @@ function checkPhaseProgress(sessionId: string): PhaseProgress {
     };
   }
 
-  // All phases done — clear phaseTracking
   updateState(sessionId, { phaseTracking: undefined });
   return { hasMore: false, allComplete: true };
 }
 
-function getPhaseInfo(sessionId: string): PhaseInfo | null {
-  const state = getState(sessionId) as (ReturnType<typeof getState> & { phaseTracking?: PhaseTracking }) | null;
-  const tracking = state?.phaseTracking;
-  if (!tracking) return null;
+// ─── Main ─────────────────────────────────────────────────────────────────────
 
-  return {
-    completedPhases: tracking.completedPhases,
-    totalPhases: tracking.totalPhases,
-    remainingPhases: tracking.totalPhases - tracking.completedPhases,
-    phases: tracking.phases,
-    planFile: tracking.planFile,
-  };
-}
-
-// ─── Chain Decider ────────────────────────────────────────────────────────────
-
-interface ChainDecision {
-  next: string | null;
-  reason: string;
-}
-
-function decideNextAgent(agentType: string, output: string, defaultNext: string | null | undefined): ChainDecision {
-  if (!output || output.length < 50) {
-    return { next: defaultNext ?? null, reason: 'Output too short, using default' };
-  }
-
-  const prompt = `Analyze this ${agentType} agent output and decide the next agent in the workflow.
-
-CURRENT AGENT: ${agentType}
-DEFAULT NEXT: ${defaultNext ?? 'none'}
-
-CHAIN RULES:
-- tester: if tests PASS → git-manager (commit), if FAIL/BUGS → debugger (fix)
-- code-reviewer: if APPROVED (no HIGH/MEDIUM issues) → tester, if ANY issues (HIGH/MEDIUM/mismatch/bug/fix needed) → implementer (fix)
-- plan-reviewer: if APPROVED → implementer, if ISSUES → planner (revise)
-- debugger: after fix → implementer (apply fix)
-- implementer: → code-reviewer
-- git-manager: if "Remaining" phases listed → implementer (next phase), if "None" or no phases → null (end)
-
-IMPORTANT: For code-reviewer, if the output mentions ANY bug, mismatch, missing field, wrong name, or needed fix — even if some checks pass — the verdict is ISSUES → implementer. Only route to tester if EVERYTHING is clean with zero issues found.
-
-AGENT OUTPUT:
-${output}
-
-Based on the output, what should be the next agent?
-Respond ONLY with JSON:
-{"next": "agent-name or null", "reason": "brief explanation"}`;
-
-  try {
-    const result = callHaiku(prompt);
-    if (result['error']) {
-      return { next: defaultNext ?? null, reason: 'AI error, using default' };
-    }
-    return {
-      next: (result['next'] as string | null) ?? null,
-      reason: (result['reason'] as string) || 'AI decision',
-    };
-  } catch {
-    return { next: defaultNext ?? null, reason: 'Error, using default' };
-  }
-}
-
-// ─── Type helper ─────────────────────────────────────────────────────────────
-
-// Re-use the state type structure locally
 type ChainState = {
   previousAgents: Array<{ type: string; id: string; completedAt: string; outputSummary: string }>;
   currentAgent?: string | null;
   sharedContext?: Record<string, unknown>;
   phaseTracking?: Record<string, unknown>;
 };
-
-// ─── Main ─────────────────────────────────────────────────────────────────────
 
 function main(): void {
   try {
@@ -258,6 +360,7 @@ function main(): void {
       };
       transcript_path?: string;
       session_id?: string;
+      cwd?: string;
     };
 
     const type = p.tool_input?.subagent_type ?? 'agent';
@@ -267,6 +370,10 @@ function main(): void {
     const tools = p.tool_response?.totalToolUseCount ?? 0;
     const transcriptPath = p.transcript_path ?? '';
     const sessionId = p.session_id ?? '';
+    const cwd = p.cwd ?? process.cwd();
+
+    // Load chain config from cwd
+    const config = loadChainConfig(cwd);
 
     // Extract response text
     let text = '';
@@ -276,7 +383,7 @@ function main(): void {
       }
     }
 
-    // Detect backgrounded agents (0 tokens, 0 duration, no text)
+    // Detect backgrounded agents
     const isBackgrounded = tokens === 0 && ms === 0 && text.length === 0;
     if (isBackgrounded) {
       const dir = dirname(LOG_FILE);
@@ -294,72 +401,36 @@ function main(): void {
       process.exit(2);
     }
 
-    const agentConfig = CONFIG.agents[type.toLowerCase()];
-    let next: string | null | undefined = agentConfig?.chainNext;
+    // Get next agent from flow config
+    const chainDecision = getNextAgent(type, text, config);
+    let next: string | null = chainDecision.next;
 
     // Phase tracking for git-manager
-    let chainDecision: ChainDecision | null = null;
     if (type.toLowerCase() === 'git-manager' && sessionId) {
       const progress = checkPhaseProgress(sessionId);
       if (progress.hasMore) {
         next = 'implementer';
-        chainDecision = {
-          next: 'implementer',
-          reason: `Phase ${progress.currentPhase}/${progress.totalPhases} committed. Next: "${progress.nextPhase}" (from ${progress.planFile})`,
-        };
         log(LOG_FILE, `[PHASE] ${progress.currentPhase}/${progress.totalPhases} → implementer: ${progress.nextPhase}\n`);
       } else if (progress.allComplete) {
         next = null;
-        chainDecision = { next: null, reason: `All ${progress.totalPhases ?? ''} phases complete` };
         log(LOG_FILE, `[PHASE] All phases complete\n`);
-      } else {
-        chainDecision = decideNextAgent(type, text, next);
-        if (chainDecision.next !== next) {
-          next = chainDecision.next;
-          log(LOG_FILE, `[CHAIN] ${type} → ${next} (${chainDecision.reason})\n`);
-        }
       }
     }
 
-    // AI-based chain decision for conditional agents
-    const conditionalAgents = ['tester', 'code-reviewer', 'plan-reviewer'];
-    if (!chainDecision && conditionalAgents.includes(type.toLowerCase())) {
-      chainDecision = decideNextAgent(type, text, next);
-      if (chainDecision.next !== next) {
-        next = chainDecision.next;
-        log(LOG_FILE, `[CHAIN] ${type} → ${next} (${chainDecision.reason})\n`);
-      }
-    }
-
-    // ── Loop Protection ──────────────────────────────────────────────────────
-    // Count how many times the next agent has already run in this session.
-    // If exceeded, stop the chain and report to user.
+    // Loop protection
     if (next && sessionId) {
       const state = (getState(sessionId) ?? { previousAgents: [] }) as ChainState;
-      const nextAgentCount = (state.previousAgents ?? []).filter(
-        (a) => a.type === next
-      ).length;
+      const nextAgentCount = (state.previousAgents ?? []).filter(a => a.type === next).length;
 
       if (nextAgentCount >= MAX_AGENT_LOOPS) {
-        log(LOG_FILE, `[LOOP BREAK] ${next} already ran ${nextAgentCount} times — stopping chain\n`);
+        log(LOG_FILE, `[LOOP BREAK] ${next} already ran ${nextAgentCount} times\n`);
         logEvent({ event: 'loop-break', agent: type, next, count: nextAgentCount, session: sessionId });
-
-        const loopNoti = `Agent ${type} completed | Chain stopped — **${next}** already ran ${nextAgentCount} times this session (max ${MAX_AGENT_LOOPS}).
-
-<system-reminder>
-## CHAIN LOOP DETECTED — STOPPED
-Agent **${next}** has been called ${nextAgentCount} times. This likely means there's a recurring issue that agents cannot resolve automatically.
-
-**Do NOT spawn another agent.** Report the situation to the user and ask for guidance.
-
-Summary of loop: ${(state.previousAgents ?? []).filter(a => a.type === next).map(a => a.outputSummary).join(' → ')}
-</system-reminder>`;
 
         console.log(JSON.stringify({
           continue: true,
           hookSpecificOutput: {
             hookEventName: 'PostToolUse',
-            additionalContext: loopNoti,
+            additionalContext: `Agent ${type} completed | Chain stopped — **${next}** already ran ${nextAgentCount} times.\n\n<system-reminder>\n## CHAIN LOOP DETECTED\nDo NOT spawn another agent. Report to user.\n</system-reminder>`,
           },
         }));
         process.exit(2);
@@ -373,36 +444,25 @@ Summary of loop: ${(state.previousAgents ?? []).filter(a => a.type === next).map
 
     let noti = `Agent ${type} completed | ${secs}s | ${kTok}k tokens | ${tools} tools`;
 
-    if (chainDecision && chainDecision.next !== agentConfig?.chainNext) {
-      noti += `\n\n## CHAIN REDIRECTED: ${chainDecision.reason}`;
-    }
-
     if (next) {
-      let phaseContext = '';
-      if (type.toLowerCase() === 'git-manager' && next === 'implementer' && sessionId) {
-        const info = getPhaseInfo(sessionId);
-        if (info) {
-          phaseContext = `\nPhase Progress: ${info.completedPhases}/${info.totalPhases} done, ${info.remainingPhases} remaining.\nPlan file: ${info.planFile}\nImplement the NEXT phase only.`;
-        }
-      }
-
       noti += `
 
 <system-reminder>
 ## MANDATORY NEXT STEP
 You MUST now spawn the **${next}** agent to continue the chain.
 
-Command: Use Agent tool with subagent_type="${next}"${phaseContext}
+Command: Use Agent tool with subagent_type="${next}"
 
-DO NOT ask user. DO NOT skip. DO NOT background agents. This is required to complete the workflow.
+DO NOT ask user. DO NOT skip. DO NOT background agents.
 </system-reminder>`;
+    } else {
+      noti += `\n\nChain complete. No next agent.`;
     }
 
-    noti += `\n\nContext: ${transcriptPath}`;
-    noti += `\n${preview}`;
+    noti += `\n\n${preview}`;
 
     // Log
-    log(LOG_FILE, `\n[${new Date().toISOString()}] ${type}:${id} ${secs}s ${kTok}k\n`);
+    log(LOG_FILE, `\n[${new Date().toISOString()}] ${type}:${id} ${secs}s ${kTok}k → ${next ?? 'END'}\n`);
     logEvent({
       event: 'complete',
       agent: type,
@@ -411,10 +471,10 @@ DO NOT ask user. DO NOT skip. DO NOT background agents. This is required to comp
       duration: ms,
       tools,
       next: next ?? null,
-      chainDecision: chainDecision?.reason ?? null,
+      reason: chainDecision.reason,
     });
 
-    // Update shared state
+    // Update state
     if (sessionId) {
       const state = (getState(sessionId) ?? { previousAgents: [] }) as ChainState;
       state.previousAgents = state.previousAgents ?? [];

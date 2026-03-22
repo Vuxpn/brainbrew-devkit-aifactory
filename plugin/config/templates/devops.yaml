@@ -2,8 +2,6 @@
 # Chain: code-scanner → security-auditor → test-runner → deployer → monitor
 #
 # Usage: /chain-builder bump devops
-#
-# For CI/CD pipelines, deployments, and infrastructure automation.
 
 hooks:
   PostToolUse:
@@ -12,3 +10,80 @@ hooks:
     - plugin:subagent-start.cjs
   SubagentStop:
     - plugin:subagent-stop.cjs
+
+flow:
+  code-scanner:
+    routes:
+      security-auditor: "Code scanned, ready for security audit"
+      code-fixer: "Code quality issues found"
+    decide: |
+      If code scan PASSED, no critical issues → "security-auditor"
+      If code quality issues, linting errors → "code-fixer"
+
+  code-fixer:
+    routes:
+      code-scanner: "Fixes applied, re-scan needed"
+
+  security-auditor:
+    routes:
+      test-runner: "Security audit passed"
+      code-fixer: "Security vulnerabilities found"
+      compliance-reviewer: "Compliance issues detected"
+    decide: |
+      If security scan PASSED, no vulnerabilities → "test-runner"
+      If security vulnerabilities, CVEs, secrets exposed → "code-fixer"
+      If compliance issues, policy violations → "compliance-reviewer"
+
+  compliance-reviewer:
+    routes:
+      code-fixer: "Compliance fixes needed"
+      test-runner: "Compliance approved"
+    decide: |
+      If compliance APPROVED → "test-runner"
+      If compliance issues → "code-fixer"
+
+  test-runner:
+    routes:
+      deployer: "All tests passed"
+      code-fixer: "Tests failed"
+      performance-analyzer: "Performance issues detected"
+    decide: |
+      If ALL tests PASS, CI green → "deployer"
+      If tests FAIL, errors → "code-fixer"
+      If performance degradation detected → "performance-analyzer"
+
+  performance-analyzer:
+    routes:
+      code-fixer: "Performance fixes needed"
+      deployer: "Performance acceptable"
+    decide: |
+      If performance within thresholds → "deployer"
+      If performance issues → "code-fixer"
+
+  deployer:
+    routes:
+      monitor: "Deployment successful"
+      rollback-manager: "Deployment failed"
+    decide: |
+      If deployment SUCCEEDED, healthy → "monitor"
+      If deployment FAILED, unhealthy → "rollback-manager"
+
+  rollback-manager:
+    routes:
+      test-runner: "Rollback complete, re-test needed"
+
+  monitor:
+    routes:
+      END: "Pipeline complete"
+      alert-handler: "Alerts triggered"
+    decide: |
+      If metrics healthy, no alerts → "END"
+      If alerts triggered, anomalies detected → "alert-handler"
+
+  alert-handler:
+    routes:
+      rollback-manager: "Critical alert, rollback needed"
+      END: "Alert handled, monitoring continues"
+    decide: |
+      If critical alert, service degradation → "rollback-manager"
+      If minor alert, handled → "END"

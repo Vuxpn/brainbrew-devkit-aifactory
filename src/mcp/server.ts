@@ -51,7 +51,7 @@ const server = new Server(
 const TOOLS = [
   // ─── Workflow/Template Tools ───
   {
-    name: 'bump_template',
+    name: 'template_bump',
     description: 'Set up a workflow template in the current project. Copies agents, skills, and chain config to .claude/',
     inputSchema: {
       type: 'object',
@@ -66,7 +66,7 @@ const TOOLS = [
     },
   },
   {
-    name: 'list_templates',
+    name: 'template_list',
     description: 'List all available workflow templates',
     inputSchema: { type: 'object', properties: {} },
   },
@@ -134,7 +134,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
   try {
     switch (name) {
       // ─── bump_template ───
-      case 'bump_template': {
+      case 'template_bump': {
         const template = args?.template as string;
         const templateDir = join(TEMPLATES_DIR, template);
         const templateYaml = join(TEMPLATES_DIR, `${template}.yaml`);
@@ -183,7 +183,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       }
 
       // ─── list_templates ───
-      case 'list_templates': {
+      case 'template_list': {
         const templates = readdirSync(TEMPLATES_DIR)
           .filter(f => f.endsWith('.yaml'))
           .map(f => f.replace('.yaml', ''));

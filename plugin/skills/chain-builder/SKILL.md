@@ -14,7 +14,7 @@ description: >-
 **Use MCP tool:**
 
 ```
-mcp__brainbrew__bump_template(template: "develop")
+mcp__brainbrew__template_bump(template: "develop")
 ```
 
 ### Templates
@@ -59,7 +59,7 @@ Then update the previous agent's routes to point to the new agent.
 
 ## Create Custom Workflow
 
-1. Start with: `mcp__brainbrew__bump_template(template: "minimal")`
+1. Start with: `mcp__brainbrew__template_bump(template: "minimal")`
 2. Create agents: Write `.claude/agents/*.md`
 3. Create skills: Write `.claude/skills/*/SKILL.md`
 4. Define flow: Edit `.claude/chain-config.yaml`

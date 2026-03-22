@@ -34,8 +34,8 @@ All functionality exposed via MCP - no CLI install needed:
 
 | Tool | Description |
 |------|-------------|
-| `bump_template` | Set up workflow template |
-| `list_templates` | Show available templates |
+| `template_bump` | Set up workflow template |
+| `template_list` | Show available templates |
 | `memory_add` | Send message to agents via Memory Bus |
 | `memory_list` | List messages in Memory Bus |
 | `memory_clear` | Clear messages from Memory Bus |

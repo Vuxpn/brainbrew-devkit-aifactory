@@ -9,9 +9,8 @@ import {
   CallToolRequestSchema,
   ListToolsRequestSchema,
 } from '@modelcontextprotocol/sdk/types.js';
-import { readFileSync, writeFileSync, existsSync, mkdirSync, readdirSync, copyFileSync, statSync } from 'fs';
+import { readFileSync, existsSync, mkdirSync, readdirSync, copyFileSync, statSync } from 'fs';
 import { join, dirname } from 'path';
-import { execSync } from 'child_process';
 
 // Recursive directory copy
 function copyDirRecursive(src: string, dest: string): void {
@@ -72,43 +71,6 @@ const TOOLS = [
     inputSchema: { type: 'object', properties: {} },
   },
 
-  // ─── Agent Tools ───
-  {
-    name: 'create_agent',
-    description: 'Create a new agent in the project. Always create a companion skill to make the agent more powerful.',
-    inputSchema: {
-      type: 'object',
-      properties: {
-        name: { type: 'string', description: 'Agent name (e.g., "api-tester")' },
-        description: { type: 'string', description: 'What the agent does' },
-        tools: {
-          type: 'array',
-          items: { type: 'string' },
-          description: 'Tools the agent can use (e.g., ["Bash", "Read", "Edit"])',
-        },
-        skills: {
-          type: 'array',
-          items: { type: 'string' },
-          description: 'Skills to attach (e.g., ["api-testing", "deployment"]). Creates skill stubs if they don\'t exist.',
-        },
-        instructions: { type: 'string', description: 'Agent instructions/prompt' },
-      },
-      required: ['name', 'description'],
-    },
-  },
-  {
-    name: 'list_agents',
-    description: 'List all agents in the current project',
-    inputSchema: { type: 'object', properties: {} },
-  },
-
-  // ─── Skill Tools ───
-  {
-    name: 'list_skills',
-    description: 'List all skills in the current project',
-    inputSchema: { type: 'object', properties: {} },
-  },
-
   // ─── Memory Bus Tools ───
   {
     name: 'memory_add',
@@ -159,28 +121,6 @@ const TOOLS = [
     },
   },
 
-  // ─── Chain Tools ───
-  {
-    name: 'get_chain_flow',
-    description: 'Get the current chain flow configuration',
-    inputSchema: { type: 'object', properties: {} },
-  },
-  {
-    name: 'add_agent_to_flow',
-    description: 'Add an agent to the chain flow',
-    inputSchema: {
-      type: 'object',
-      properties: {
-        agent: { type: 'string', description: 'Agent name to add' },
-        routes: {
-          type: 'object',
-          description: 'Routes map: { "next-agent": "description" }',
-        },
-        decide: { type: 'string', description: 'AI routing prompt' },
-      },
-      required: ['agent', 'routes'],
-    },
-  },
 ];
 
 server.setRequestHandler(ListToolsRequestSchema, async () => ({ tools: TOOLS }));
@@ -257,129 +197,6 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         return success(`Available templates:\n\n${info}`);
       }
 
-      // ─── create_agent ───
-      case 'create_agent': {
-        const agentName = args?.name as string;
-        const description = args?.description as string;
-        const tools = (args?.tools as string[]) || ['Bash', 'Read', 'Edit', 'Grep', 'Glob'];
-        const skills = (args?.skills as string[]) || [];
-        const instructions = args?.instructions as string || '';
-
-        const agentPath = join(cwd, '.claude/agents', `${agentName}.md`);
-        mkdirSync(dirname(agentPath), { recursive: true });
-
-        // Build frontmatter
-        let frontmatter = `---
-name: ${agentName}
-description: >-
-  ${description}
-tools:
-${tools.map(t => `  - ${t}`).join('\n')}`;
-
-        if (skills.length > 0) {
-          frontmatter += `\nskills:\n${skills.map(s => `  - ${s}`).join('\n')}`;
-        }
-
-        frontmatter += '\n---';
-
-        const title = agentName.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
-        const body = instructions || `## Responsibilities
-
-1. [Responsibility 1]
-2. [Responsibility 2]
-
-## Output Format
-
-[Expected output structure]`;
-
-        const content = `${frontmatter}\n\n# ${title} Agent\n\n${body}\n`;
-        writeFileSync(agentPath, content);
-
-        // Create skill stubs for skills that don't exist
-        const createdSkills: string[] = [];
-        for (const skill of skills) {
-          const skillDir = join(cwd, '.claude/skills', skill);
-          const skillFile = join(skillDir, 'SKILL.md');
-          if (!existsSync(skillFile)) {
-            mkdirSync(skillDir, { recursive: true });
-            writeFileSync(skillFile, `---
-name: ${skill}
-description: >-
-  Knowledge and procedures for ${title} agent.
-  Provides domain-specific context and step-by-step workflows.
----
-
-# ${skill.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')}
-
-## Domain Knowledge
-
-[Add domain-specific knowledge here]
-
-## Procedures
-
-1. [Step 1]
-2. [Step 2]
-
-## References
-
-[Add reference links, docs, etc.]
-`);
-            createdSkills.push(skill);
-          }
-        }
-
-        let result = `✓ Created agent: ${agentPath}`;
-        if (skills.length > 0) {
-          result += `\n  Skills attached: ${skills.join(', ')}`;
-        }
-        if (createdSkills.length > 0) {
-          result += `\n  Skill stubs created: ${createdSkills.join(', ')} (fill in domain knowledge!)`;
-        }
-        if (skills.length === 0) {
-          result += `\n\n💡 Tip: Add skills to make this agent stronger!\n  Use: create_agent(... skills: ["${agentName}"])`;
-        }
-
-        return success(result);
-      }
-
-      // ─── list_agents ───
-      case 'list_agents': {
-        const agentsDir = join(cwd, '.claude/agents');
-        if (!existsSync(agentsDir)) {
-          return success('No agents found. Run bump_template first.');
-        }
-
-        const agents = readdirSync(agentsDir)
-          .filter(f => f.endsWith('.md'))
-          .map(f => {
-            const content = readFileSync(join(agentsDir, f), 'utf-8');
-            const descMatch = content.match(/description:\s*>?-?\s*\n?\s*(.+)/);
-            const desc = descMatch ? descMatch[1].trim() : '';
-            return `- **${f.replace('.md', '')}**: ${desc.substring(0, 60)}`;
-          });
-
-        return success(`Agents (${agents.length}):\n\n${agents.join('\n')}`);
-      }
-
-      // ─── list_skills ───
-      case 'list_skills': {
-        const skillsDir = join(cwd, '.claude/skills');
-        if (!existsSync(skillsDir)) {
-          return success('No skills found. Run bump_template first.');
-        }
-
-        const skills = readdirSync(skillsDir)
-          .filter(s => existsSync(join(skillsDir, s, 'SKILL.md')))
-          .map(s => {
-            const content = readFileSync(join(skillsDir, s, 'SKILL.md'), 'utf-8');
-            const descMatch = content.match(/description:\s*>?-?\s*\n?\s*(.+)/);
-            const desc = descMatch ? descMatch[1].trim() : '';
-            return `- **${s}**: ${desc.substring(0, 60)}`;
-          });
-
-        return success(`Skills (${skills.length}):\n\n${skills.join('\n')}`);
-      }
-
       // ─── memory_add ───
       case 'memory_add': {
         const content = args?.content as string;
@@ -422,46 +239,6 @@ description: >-
         });
 
         return success(`✓ Cleared ${cleared} messages`);
-      }
-
-      // ─── get_chain_flow ───
-      case 'get_chain_flow': {
-        const configPath = join(cwd, '.claude/chain-config.yaml');
-        if (!existsSync(configPath)) {
-          return success('No chain config. Run bump_template first.');
-        }
-
-        const config = readFileSync(configPath, 'utf-8');
-        return success(`Chain Config:\n\n\`\`\`yaml\n${config}\n\`\`\``);
-      }
-
-      // ─── add_agent_to_flow ───
-      case 'add_agent_to_flow': {
-        const agent = args?.agent as string;
-        const routes = args?.routes as Record<string, string>;
-        const decide = args?.decide as string;
-
-        const configPath = join(cwd, '.claude/chain-config.yaml');
-        if (!existsSync(configPath)) {
-          return error('No chain config. Run bump_template first.');
-        }
-
-        let config = readFileSync(configPath, 'utf-8');
-
-        // Build YAML for new agent
-        let newFlow = `\n  ${agent}:\n    routes:\n`;
-        for (const [target, desc] of Object.entries(routes)) {
-          newFlow += `      ${target}: "${desc}"\n`;
-        }
-        if (decide) {
-          newFlow += `    decide: |\n      ${decide.split('\n').join('\n      ')}\n`;
-        }
-
-        // Append to flow section
-        config = config.replace(/^(flow:)/m, `$1${newFlow}`);
-        writeFileSync(configPath, config);
-
-        return success(`✓ Added ${agent} to chain flow`);
       }
 
       default:

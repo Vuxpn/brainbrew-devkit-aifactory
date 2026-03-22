@@ -34,16 +34,13 @@ All functionality exposed via MCP - no CLI install needed:
 
 | Tool | Description |
 |------|-------------|
-| `bump_template` | Set up workflow template |
-| `list_templates` | Show available templates |
-| `create_agent` | Create new agent |
-| `list_agents` | List project agents |
-| `list_skills` | List project skills |
-| `memory_add` | Send message to agents |
-| `memory_list` | List messages |
-| `memory_clear` | Clear messages |
-| `get_chain_flow` | Show chain config |
-| `add_agent_to_flow` | Add agent to chain |
+| `bump_template` | Set up workflow template (needs plugin root) |
+| `list_templates` | Show available templates (needs plugin root) |
+| `memory_add` | Send message to agents via Memory Bus |
+| `memory_list` | List messages in Memory Bus |
+| `memory_clear` | Clear messages from Memory Bus |
+
+Agents, skills, and chain config are just files — Claude reads/writes them directly.
 
 ## Workflow Templates
 

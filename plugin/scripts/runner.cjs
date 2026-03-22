@@ -36,13 +36,21 @@ function resolveScriptPath(script, cwd) {
   }
   return (0, import_path.join)(PLUGIN_SCRIPTS, script);
 }
+var DEFAULT_PLUGIN_HOOKS = {
+  SessionEnd: ["session-end.cjs"]
+  // Memory bus cleanup
+};
 function loadProjectHooks(event, cwd) {
+  const hooks = [];
+  const defaults = DEFAULT_PLUGIN_HOOKS[event] || [];
+  hooks.push(...defaults.map((h) => (0, import_path.join)(PLUGIN_SCRIPTS, h)));
   const configPath = (0, import_path.join)(cwd, ".claude", "chain-config.yaml");
-  if (!(0, import_fs.existsSync)(configPath)) {
-    return [];
+  if ((0, import_fs.existsSync)(configPath)) {
+    const config = parseYamlConfig((0, import_fs.readFileSync)(configPath, "utf-8"));
+    const projectHooks = (config.hooks[event] || []).map((h) => resolveScriptPath(h, cwd));
+    hooks.push(...projectHooks);
   }
-  const config = parseYamlConfig((0, import_fs.readFileSync)(configPath, "utf-8"));
-  return (config.hooks[event] || []).map((h) => resolveScriptPath(h, cwd));
+  return hooks;
 }
 function runHook(hookPath, stdin) {
   if (!(0, import_fs.existsSync)(hookPath)) {

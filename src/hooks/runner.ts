@@ -67,15 +67,27 @@ function resolveScriptPath(script: string, cwd: string): string {
   return join(PLUGIN_SCRIPTS, script);
 }
 
-function loadProjectHooks(event: string, cwd: string): string[] {
-  const configPath = join(cwd, '.claude', 'chain-config.yaml');
+// Default plugin hooks that always run (even without project config)
+const DEFAULT_PLUGIN_HOOKS: Record<string, string[]> = {
+  SessionEnd: ['session-end.cjs'],  // Memory bus cleanup
+};
 
-  if (!existsSync(configPath)) {
-    return [];
+function loadProjectHooks(event: string, cwd: string): string[] {
+  const hooks: string[] = [];
+
+  // Add default plugin hooks first
+  const defaults = DEFAULT_PLUGIN_HOOKS[event] || [];
+  hooks.push(...defaults.map(h => join(PLUGIN_SCRIPTS, h)));
+
+  // Add project-specific hooks
+  const configPath = join(cwd, '.claude', 'chain-config.yaml');
+  if (existsSync(configPath)) {
+    const config = parseYamlConfig(readFileSync(configPath, 'utf-8'));
+    const projectHooks = (config.hooks[event] || []).map(h => resolveScriptPath(h, cwd));
+    hooks.push(...projectHooks);
   }
 
-  const config = parseYamlConfig(readFileSync(configPath, 'utf-8'));
-  return (config.hooks[event] || []).map(h => resolveScriptPath(h, cwd));
+  return hooks;
 }
 
 function runHook(hookPath: string, stdin: string): { output?: string; block?: boolean; exit2?: boolean } {

@@ -81,12 +81,14 @@ brainbrew memory clear --all              # Clear everything
 
 ## Persistence
 
-| Type | Behavior |
-|------|----------|
-| `permanent` | Survives forever (learnings) |
-| `session` | Cleared on session end |
-| `chain` | Cleared on chain completion |
-| `once` | Consumed after first read |
+| Type | Behavior | Use Case |
+|------|----------|----------|
+| `session` | **DEFAULT** - Cleared when session ends | Most messages |
+| `once` | Consumed after first read (queue) | One-time instructions |
+| `chain` | Cleared when chain completes | Chain-specific context |
+| `permanent` | Survives forever | Preferences, knowledge base, permanent routes |
+
+**Default is `session`** - Messages are temporary and auto-cleaned when you exit Claude.
 
 ## Examples
 

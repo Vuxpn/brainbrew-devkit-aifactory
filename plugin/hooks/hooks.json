@@ -1,6 +1,18 @@
 {
   "description": "BrainBrew DevKit - Agent chain engine hooks",
   "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": ".*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "_R=\"${CLAUDE_PLUGIN_ROOT}\"; node \"$_R/scripts/runner.cjs\" PreToolUse",
+            "timeout": 30
+          }
+        ]
+      }
+    ],
     "PostToolUse": [
       {
         "matcher": "Agent",
@@ -45,6 +57,54 @@
             "type": "command",
             "command": "_R=\"${CLAUDE_PLUGIN_ROOT}\"; node \"$_R/scripts/runner.cjs\" Stop",
             "timeout": 60
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "matcher": ".*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "_R=\"${CLAUDE_PLUGIN_ROOT}\"; node \"$_R/scripts/runner.cjs\" UserPromptSubmit",
+            "timeout": 30
+          }
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "matcher": ".*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "_R=\"${CLAUDE_PLUGIN_ROOT}\"; node \"$_R/scripts/runner.cjs\" SessionStart",
+            "timeout": 30
+          }
+        ]
+      }
+    ],
+    "SessionEnd": [
+      {
+        "matcher": ".*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "_R=\"${CLAUDE_PLUGIN_ROOT}\"; node \"$_R/scripts/runner.cjs\" SessionEnd",
+            "timeout": 30
+          }
+        ]
+      }
+    ],
+    "Notification": [
+      {
+        "matcher": ".*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "_R=\"${CLAUDE_PLUGIN_ROOT}\"; node \"$_R/scripts/runner.cjs\" Notification",
+            "timeout": 30
           }
         ]
       }

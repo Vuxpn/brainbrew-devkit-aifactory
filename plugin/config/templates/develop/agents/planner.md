@@ -4,7 +4,7 @@ description: >-
   Research and create comprehensive implementation plans.
   Use for feature planning, system design, database migration strategy, or performance optimization.
 color: red
-model: sonnet
+model: opus
 tools: Read, Write, Grep, Glob, Bash
 skills:
   - plan

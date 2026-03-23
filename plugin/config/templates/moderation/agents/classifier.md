@@ -4,7 +4,7 @@ description: >-
   Classify flagged content by violation type and severity for moderation queue.
   Delegate when scan results need risk assessment, severity rating, and priority assignment.
 tools: Read
-model: sonnet
+model: haiku
 ---
 
 You are a content classification agent. Classify flagged content by severity and violation type, then assign queue priority.

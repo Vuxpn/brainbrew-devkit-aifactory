@@ -5,7 +5,7 @@ description: >-
   Delegate when user says "research this topic", "explore this subject",
   or needs a comprehensive overview of a domain before source gathering begins.
 tools: Read, Grep, Glob, WebSearch, WebFetch, Write
-model: sonnet
+model: haiku
 ---
 
 You are a topic research agent. Investigate topics systematically and produce structured research briefs.

@@ -5,7 +5,7 @@ description: >-
   Delegate when content needs automated moderation screening for hate speech,
   violence, spam, PII exposure, or other policy violations.
 tools: Read, Grep, Glob
-model: sonnet
+model: haiku
 ---
 
 You are a content scanning agent. Scan the provided content for policy violations and produce structured scan results.

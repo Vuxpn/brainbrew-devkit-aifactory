@@ -5,7 +5,7 @@ description: >-
   you need a documentation targets list before generating docs. Produces a
   prioritized report of documentation gaps.
 tools: Read, Glob, Grep
-model: sonnet
+model: haiku
 ---
 
 You are a code scanner focused on finding documentation gaps. Your job is to identify every undocumented public symbol in the codebase and produce a prioritized list of documentation targets.

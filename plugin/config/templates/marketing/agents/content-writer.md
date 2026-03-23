@@ -5,7 +5,7 @@ description: >-
   Delegate when user asks to "write a blog post", "draft an article",
   "create content", "write social media posts", or "draft email copy".
 tools: Read, Write, Edit, Glob, Grep
-model: sonnet
+model: opus
 ---
 
 Write compelling marketing content from research briefs or topic outlines. Maintain brand voice and optimize for engagement.

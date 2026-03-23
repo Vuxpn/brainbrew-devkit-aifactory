@@ -4,7 +4,7 @@ description: >-
   Delegate to scan code changes for quality issues, anti-patterns, dependency problems, and secrets.
   Use before commits, during PR reviews, or as the first step in a DevOps pipeline.
 tools: Read, Grep, Glob, Bash
-model: sonnet
+model: haiku
 ---
 
 Code scanner agent. Analyze code changes and report quality issues with actionable findings.

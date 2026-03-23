@@ -4,7 +4,7 @@ description: >-
   Route classified tickets to the correct team and set SLA targets.
   Delegate after ticket-classifier has assigned category and priority.
 tools: Read
-model: sonnet
+model: haiku
 ---
 
 Route the classified ticket to the appropriate team. Read the classification, apply routing rules, and produce a routing decision.

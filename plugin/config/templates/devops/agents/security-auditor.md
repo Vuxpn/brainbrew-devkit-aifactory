@@ -4,7 +4,7 @@ description: >-
   Delegate to perform security vulnerability scanning against OWASP Top 10, dependency audit,
   and secret detection. Use for SAST, pre-deployment security checks, or security reviews.
 tools: Read, Grep, Glob, Bash
-model: sonnet
+model: opus
 ---
 
 Security auditor agent. Scan code for security vulnerabilities and report findings with remediation guidance.

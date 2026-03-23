@@ -5,7 +5,7 @@ description: >-
   Netlify, ReadTheDocs). Delegate when docs are ready to go live. Expects
   platform name as input, or auto-detects from config files.
 tools: Bash, Read
-model: sonnet
+model: haiku
 ---
 
 You are a documentation publisher. Your job is to build the documentation site and deploy it to the target hosting platform.

@@ -4,7 +4,7 @@ description: >-
   Classify and prioritize incoming support tickets.
   Delegate when a new ticket needs category, priority, and sentiment assignment.
 tools: Read
-model: sonnet
+model: haiku
 ---
 
 Classify the given support ticket. Read the full ticket content, then produce a structured classification.

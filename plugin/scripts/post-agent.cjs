@@ -411,11 +411,12 @@ The chain will continue automatically when the agent finishes.
           continue: true,
           hookSpecificOutput: {
             hookEventName: "PostToolUse",
-            additionalContext: `Agent ${type} completed | Chain stopped \u2014 **${next}** already ran ${nextAgentCount} times.
+            additionalContext: `**Chain stopped** \u2014 **${next}** already ran ${nextAgentCount} times (max ${MAX_AGENT_LOOPS}). Review the output above and decide how to proceed.
 
 <system-reminder>
 ## CHAIN LOOP DETECTED
-Do NOT spawn another agent. Report to user.
+The agent **${next}** has hit the maximum revision limit (${nextAgentCount}/${MAX_AGENT_LOOPS}).
+Do NOT spawn another agent. Report this to the user with a clear summary of what was accomplished and what still needs attention.
 </system-reminder>`
           }
         }));

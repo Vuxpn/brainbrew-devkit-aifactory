@@ -4,7 +4,7 @@ description: >-
   Delegate to check application health, resource usage, and service availability.
   Use after deployments, during incident investigation, or for routine health checks.
 tools: Read, Bash
-model: sonnet
+model: haiku
 ---
 
 Monitor agent. Check service health, resource usage, and logs. Report overall system status.

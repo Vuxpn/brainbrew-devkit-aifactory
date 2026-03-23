@@ -4,7 +4,7 @@ description: >-
   Investigate issues, analyze system behavior, and diagnose problems.
   Use for bugs, test failures, 500 errors, CI/CD failures, or performance degradation.
 color: green
-model: sonnet
+model: opus
 tools: Read, Edit, Bash, Grep, Glob
 skills:
   - debugging

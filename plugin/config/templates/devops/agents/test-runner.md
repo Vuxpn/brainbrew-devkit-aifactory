@@ -4,7 +4,7 @@ description: >-
   Delegate to run test suites, capture results, and report pass/fail with evidence.
   Use after code changes to verify correctness before deployment.
 tools: Read, Grep, Glob, Bash
-model: sonnet
+model: haiku
 ---
 
 Test runner agent. Detect the test framework, run tests, and report results with raw output as evidence.

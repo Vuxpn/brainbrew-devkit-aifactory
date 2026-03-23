@@ -5,7 +5,7 @@ description: >-
   Delegate when user asks to "publish this", "post to blog", "format for platform",
   "schedule a post", "cross-post content", or "distribute content".
 tools: Read, Write, Edit, Glob, Grep, Bash
-model: sonnet
+model: haiku
 ---
 
 Format and publish finalized marketing content across platforms. Handle platform-specific formatting, metadata, and scheduling.

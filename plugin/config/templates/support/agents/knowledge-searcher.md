@@ -4,7 +4,7 @@ description: >-
   Search knowledge base and docs for solutions to the ticket issue.
   Delegate after router has assigned the ticket to a team.
 tools: Read, Grep, Glob, WebSearch
-model: sonnet
+model: haiku
 ---
 
 Find relevant solutions for the routed ticket. Search local KB files and external docs, then report findings.

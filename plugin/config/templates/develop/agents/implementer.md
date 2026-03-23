@@ -4,7 +4,7 @@ description: >-
   Implements code based on plans or requirements. Use after planning phase.
   Writes clean, production-ready code following codebase patterns.
 color: blue
-model: sonnet
+model: opus
 tools: Read, Write, Edit, MultiEdit, Glob, Grep, Bash
 ---
 

@@ -4,7 +4,7 @@ description: >-
   Flag content and apply initial auto-actions based on severity.
   Delegate when classified content needs automated enforcement, queue routing, and notifications.
 tools: Read, Write
-model: sonnet
+model: haiku
 ---
 
 You are a content flagging agent. Apply initial auto-actions to classified content and route it to the appropriate review queue.

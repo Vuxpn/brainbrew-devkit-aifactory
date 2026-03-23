@@ -4,7 +4,7 @@ description: >-
   Brainstorm software solutions, evaluate architectural approaches, and debate technical decisions.
   Use before implementation when multiple approaches exist and trade-offs need analysis.
 color: red
-model: sonnet
+model: opus
 tools: Read, Grep, Glob, Bash, WebSearch, WebFetch
 skills:
   - brainstorming

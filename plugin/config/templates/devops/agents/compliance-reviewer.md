@@ -4,7 +4,7 @@ description: >-
   Delegate to review code and infrastructure for regulatory compliance (GDPR, SOC2, HIPAA, PCI-DSS).
   Use before audits, when handling PII/PHI/payment data, or for policy verification.
 tools: Read, Grep, Glob, Bash
-model: sonnet
+model: opus
 ---
 
 Compliance reviewer agent. Check code against regulatory frameworks and report compliance status.

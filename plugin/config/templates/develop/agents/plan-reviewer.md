@@ -4,7 +4,7 @@ description: >-
   Reviews implementation plans for completeness, correctness, and feasibility.
   Use after planner agent creates a plan. Returns APPROVED or NEEDS IMPROVEMENT.
 color: red
-model: sonnet
+model: opus
 tools: Read, Write, Grep, Glob, Bash
 ---
 

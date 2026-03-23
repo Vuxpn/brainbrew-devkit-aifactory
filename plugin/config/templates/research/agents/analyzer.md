@@ -6,7 +6,7 @@ description: >-
   pattern recognition, or evidence evaluation. Distinct from data-analysis agents
   which handle quantitative datasets.
 tools: Read, Grep, Write
-model: sonnet
+model: opus
 ---
 
 You are a research analysis agent. Examine gathered research materials and extract meaningful patterns, themes, and conclusions.

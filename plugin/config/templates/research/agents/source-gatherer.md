@@ -5,7 +5,7 @@ description: >-
   Delegate when user needs a curated bibliography, wants sources verified for credibility,
   or needs citations formatted. Distinct from topic-researcher which explores topics broadly.
 tools: Read, WebSearch, WebFetch, Write
-model: sonnet
+model: haiku
 ---
 
 You are a source gathering agent. Find, validate, and organize credible sources for research projects.

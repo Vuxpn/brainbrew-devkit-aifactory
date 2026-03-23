@@ -11,9 +11,14 @@ BrainBrew development toolkit — a Claude Code plugin providing agent chains, s
 
 ## Installation
 
-```bash
-claude plugins install github:brainbrewlabs/brainbrew-devkit
+In a Claude Code session, run:
+
 ```
+/plugin marketplace add brainbrewlabs/brainbrew-devkit
+/plugin install brainbrew-devkit
+```
+
+Then restart Claude Code.
 
 ## Quick Start
 
@@ -186,6 +191,74 @@ flow:
       END: "Published"
 ```
 
+### Custom Hook Scripts
+
+You can inject your own hook scripts alongside the 3 built-in ones (`post-agent`, `subagent-start`, `subagent-stop`). Place scripts in `.claude/hooks/` and register them in `chain-config.yaml`:
+
+```yaml
+hooks:
+  PostToolUse:
+    - plugin:post-agent.cjs        # built-in: chain routing
+    - ./my-post-validator.js       # your custom script
+  SubagentStart:
+    - plugin:subagent-start.cjs    # built-in: context injection
+    - ./inject-env-context.js      # your custom script
+  SubagentStop:
+    - plugin:subagent-stop.cjs     # built-in: output verification
+  SessionEnd:
+    - ./cleanup.js                 # your custom cleanup
+```
+
+**Script path resolution:**
+
+| Prefix | Resolves to | Example |
+|--------|-------------|---------|
+| `plugin:` | Plugin's built-in scripts | `plugin:post-agent.cjs` |
+| `./` | `{cwd}/.claude/hooks/` | `./my-hook.js` |
+| `/absolute` | Absolute path | `/usr/local/hooks/lint.js` |
+
+**Script contract:**
+
+Your script receives the hook event payload via **stdin** (JSON) and communicates back via **stdout** + **exit code**:
+
+| Exit code | stdout | Effect |
+|-----------|--------|--------|
+| `0` | _(empty)_ | No-op |
+| `0` | `{"decision": "block", "reason": "..."}` | Block the tool use |
+| `2` | JSON with `hookSpecificOutput` | Inject context into Claude's conversation |
+| `0` | Any other text | Pass-through output |
+
+Example — a custom script that injects context:
+
+```js
+// .claude/hooks/inject-env-context.js
+const stdin = require('fs').readFileSync(0, 'utf-8');
+const payload = JSON.parse(stdin);
+
+console.log(JSON.stringify({
+  hookSpecificOutput: {
+    hookEventName: 'SubagentStart',
+    additionalContext: `<system-reminder>Environment: ${process.env.NODE_ENV}</system-reminder>`,
+  },
+}));
+```
+
+Example — a custom script that blocks dangerous commands:
+
+```js
+// .claude/hooks/block-prod-deploy.js
+const stdin = require('fs').readFileSync(0, 'utf-8');
+const payload = JSON.parse(stdin);
+const cmd = payload.tool_input?.command || '';
+
+if (cmd.includes('deploy') && cmd.includes('production')) {
+  console.log(JSON.stringify({
+    decision: 'block',
+    reason: 'Production deploys require manual approval',
+  }));
+}
+```
+
 ### Mix & Match Templates
 
 ```bash
@@ -258,10 +331,21 @@ Agents can communicate via the Memory Bus:
 
 ## Architecture
 
-Hook-driven chain engine:
+Hook-driven chain engine with a single **runner** that dispatches to script hooks:
+
+**Built-in hooks (3 + 1):**
 
 1. **post-agent.cjs** — Fires after agent completes; reads `decide:` prompt, calls Haiku, picks next agent
-2. **subagent-start.cjs** — Injects context when agent spawns
-3. **subagent-stop.cjs** — Records output for chain continuity
+2. **subagent-start.cjs** — Injects context (chain state, Memory Bus messages) when agent spawns
+3. **subagent-stop.cjs** — Verifies output quality, blocks incomplete work with retry feedback
+4. **session-end.cjs** — Cleans up Memory Bus session data (runs automatically, no config needed)
 
-Flow config is read from `{cwd}/.claude/chain-config.yaml`.
+**Runner flow:**
+
+```
+Claude Code event → hooks.json → runner.cjs → loads chain-config.yaml → runs scripts sequentially
+                                                 ├─ built-in plugin scripts
+                                                 └─ user custom scripts (.claude/hooks/)
+```
+
+Flow config and custom hooks are read from `{cwd}/.claude/chain-config.yaml`.

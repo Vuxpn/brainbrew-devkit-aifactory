@@ -4,9 +4,14 @@ AI-powered development toolkit for Claude Code — customizable agent chains, mo
 
 ## Installation
 
-```bash
-claude plugins install github:brainbrewlabs/brainbrew-devkit
+In a Claude Code session, run:
+
 ```
+/plugin marketplace add brainbrewlabs/brainbrew-devkit
+/plugin install brainbrew-devkit
+```
+
+Then restart Claude Code.
 
 ## Quick Start
 

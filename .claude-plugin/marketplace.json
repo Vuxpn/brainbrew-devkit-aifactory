@@ -1,0 +1,18 @@
+{
+  "name": "brainbrewlabs",
+  "owner": {
+    "name": "BrainBrew Labs"
+  },
+  "metadata": {
+    "description": "Plugins by BrainBrew Labs",
+    "homepage": "https://github.com/brainbrewlabs/brainbrew-devkit"
+  },
+  "plugins": [
+    {
+      "name": "brainbrew-devkit",
+      "version": "1.0.0",
+      "source": "./plugin",
+      "description": "Agent chains, AI-powered routing, 10 workflow templates, 60+ agents & skills. Easy to create your own, fits any project."
+    }
+  ]
+}

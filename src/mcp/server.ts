@@ -251,7 +251,14 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
             continue;
           }
 
-          if (line.match(/^\s+type:\s*team/) && currentNode) { isTeam = true; continue; }
+          const propFields = /^\s+(type|decide|next|on_fail|on_issues):\s*/;
+          if (line.match(propFields) && currentNode) {
+            if (line.match(/^\s+type:\s*team/)) isTeam = true;
+            inTeammates = false; inRoutes = false;
+            if (currentTm) { teammates.push({ ...currentTm }); currentTm = null; }
+            continue;
+          }
+
           if (line.match(/^\s+teammates:\s*$/) && currentNode) { inTeammates = true; inRoutes = false; continue; }
           if (line.match(/^\s+routes:\s*$/) && currentNode) { inRoutes = true; inTeammates = false; if (currentTm) { teammates.push({ ...currentTm }); currentTm = null; } continue; }
 
@@ -267,7 +274,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           }
 
           if (inRoutes) {
-            const routeMatch = line.match(/^\s+(\S+):\s*"?[^"]*"?\s*$/);
+            const routeMatch = line.match(/^\s{6}(\S+):\s*"[^"]*"\s*$/);
             if (routeMatch) { routes.push(routeMatch[1]); continue; }
           }
         }

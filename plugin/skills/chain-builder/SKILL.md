@@ -5,7 +5,8 @@ description: >-
   "set up a workflow", "create a development workflow", "I need a CI/CD pipeline",
   "set up devops", "bump develop", "bump devops", "add agent to chain",
   "show chain flow", "edit chain config", "create custom workflow",
-  "add a team node", "run agents in parallel", "create agent team".
+  "add a team node", "run agents in parallel", "create agent team",
+  "validate chain", "check chain config", "verify chain".
 ---
 
 # Chain Builder
@@ -38,6 +39,21 @@ mcp__brainbrew__template_bump(template: "develop")
 ```bash
 cat .claude/chain-config.yaml
 ```
+
+## Validate Chain Config
+
+```
+mcp__brainbrew__chain_validate()
+```
+
+Checks:
+- All agents in flow have matching `.claude/agents/{name}.md` files
+- Team nodes have valid teammates with `name` and `agent` fields
+- Teammate agents exist in `.claude/agents/`
+- All routes point to nodes defined in the flow
+- No dead-end nodes (nodes without routes)
+
+Returns ✅ PASS or list of ❌/⚠ issues.
 
 ## Chain Config Structure
 

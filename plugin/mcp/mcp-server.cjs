@@ -20950,6 +20950,11 @@ var TOOLS = [
     description: "List all available workflow templates",
     inputSchema: { type: "object", properties: {} }
   },
+  {
+    name: "chain_validate",
+    description: "Validate the chain config. Checks that all agents in flow exist, team nodes have valid teammates, routes point to valid targets, and detects dead-end nodes.",
+    inputSchema: { type: "object", properties: {} }
+  },
   // ─── Memory Bus Tools ───
   {
     name: "memory_add",
@@ -21058,6 +21063,141 @@ ${flow}`);
         return success2(`Available templates:
 
 ${info}`);
+      }
+      // ─── chain_validate ───
+      case "chain_validate": {
+        const configPath = (0, import_path2.join)(cwd, ".claude", "chain-config.yaml");
+        if (!(0, import_fs2.existsSync)(configPath)) {
+          return error2("No chain config found at .claude/chain-config.yaml");
+        }
+        const content = (0, import_fs2.readFileSync)(configPath, "utf-8");
+        const issues = [];
+        const installedAgents = /* @__PURE__ */ new Set();
+        const agentsDir = (0, import_path2.join)(cwd, ".claude", "agents");
+        if ((0, import_fs2.existsSync)(agentsDir)) {
+          (0, import_fs2.readdirSync)(agentsDir).filter((f) => f.endsWith(".md")).forEach((f) => installedAgents.add(f.replace(".md", "")));
+        }
+        const flowNodes = /* @__PURE__ */ new Map();
+        let currentNode = "";
+        let inFlow = false;
+        let inTeammates = false;
+        let inRoutes = false;
+        let isTeam = false;
+        let teammates = [];
+        let routes = [];
+        let currentTm = null;
+        const flushNode = () => {
+          if (!currentNode) return;
+          if (currentTm) {
+            teammates.push({ ...currentTm });
+            currentTm = null;
+          }
+          flowNodes.set(currentNode, { isTeam, teammates: [...teammates], routes: [...routes] });
+          teammates = [];
+          routes = [];
+          isTeam = false;
+        };
+        for (const line of content.split("\n")) {
+          if (line.match(/^flow:\s*$/)) {
+            inFlow = true;
+            continue;
+          }
+          if (!inFlow) continue;
+          if (line.match(/^\S/) && !line.match(/^flow:/)) {
+            inFlow = false;
+            flushNode();
+            continue;
+          }
+          const nodeMatch = line.match(/^  (\S+):\s*$/);
+          if (nodeMatch) {
+            flushNode();
+            currentNode = nodeMatch[1];
+            inTeammates = false;
+            inRoutes = false;
+            continue;
+          }
+          if (line.match(/^\s+type:\s*team/) && currentNode) {
+            isTeam = true;
+            continue;
+          }
+          if (line.match(/^\s+teammates:\s*$/) && currentNode) {
+            inTeammates = true;
+            inRoutes = false;
+            continue;
+          }
+          if (line.match(/^\s+routes:\s*$/) && currentNode) {
+            inRoutes = true;
+            inTeammates = false;
+            if (currentTm) {
+              teammates.push({ ...currentTm });
+              currentTm = null;
+            }
+            continue;
+          }
+          if (inTeammates) {
+            const startMatch = line.match(/^\s+- name:\s*(.+)/);
+            if (startMatch) {
+              if (currentTm) teammates.push({ ...currentTm });
+              currentTm = { name: startMatch[1].trim(), agent: "" };
+              continue;
+            }
+            const agentMatch = line.match(/^\s+agent:\s*(.+)/);
+            if (agentMatch && currentTm) {
+              currentTm.agent = agentMatch[1].trim();
+              continue;
+            }
+          }
+          if (inRoutes) {
+            const routeMatch = line.match(/^\s+(\S+):\s*"?[^"]*"?\s*$/);
+            if (routeMatch) {
+              routes.push(routeMatch[1]);
+              continue;
+            }
+          }
+        }
+        flushNode();
+        const allNodeNames = new Set(flowNodes.keys());
+        for (const [nodeName, node] of flowNodes) {
+          if (node.isTeam) {
+            if (node.teammates.length === 0) {
+              issues.push(`\u274C Team "${nodeName}" has no teammates`);
+            }
+            for (const tm of node.teammates) {
+              if (!tm.name) issues.push(`\u274C Team "${nodeName}" has a teammate without a name`);
+              if (!tm.agent) {
+                issues.push(`\u274C Teammate "${tm.name}" in team "${nodeName}" missing agent field`);
+              } else if (!installedAgents.has(tm.agent)) {
+                issues.push(`\u274C Teammate "${tm.name}" \u2192 agent "${tm.agent}" not found in .claude/agents/`);
+              }
+            }
+          } else {
+            if (!installedAgents.has(nodeName) && nodeName !== "END") {
+              issues.push(`\u26A0 Flow node "${nodeName}" has no matching agent file in .claude/agents/`);
+            }
+          }
+          if (node.routes.length === 0 && nodeName !== "END") {
+            issues.push(`\u26A0 Node "${nodeName}" has no routes (dead-end)`);
+          }
+          for (const target of node.routes) {
+            if (target === "END") continue;
+            if (!allNodeNames.has(target)) {
+              issues.push(`\u274C Route "${nodeName}" \u2192 "${target}" but "${target}" is not defined in flow`);
+            }
+          }
+        }
+        if (issues.length === 0) {
+          const summary = `\u2705 Chain config is valid
+
+Nodes: ${flowNodes.size}
+Agents installed: ${installedAgents.size}
+Team nodes: ${[...flowNodes.values()].filter((n) => n.isTeam).length}`;
+          return success2(summary);
+        }
+        return success2(`Chain validation found ${issues.length} issue(s):
+
+${issues.join("\n")}
+
+Nodes: ${flowNodes.size} | Agents installed: ${installedAgents.size}`);
       }
       // ─── memory_add ───
       case "memory_add": {

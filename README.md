@@ -42,6 +42,7 @@ All functionality exposed via MCP - no CLI install needed:
 |------|-------------|
 | `template_bump` | Set up workflow template |
 | `template_list` | Show available templates |
+| `chain_validate` | Validate chain config (agents exist, team nodes valid, routes correct) |
 | `memory_add` | Send message to agents via Memory Bus |
 | `memory_list` | List messages in Memory Bus |
 | `memory_clear` | Clear messages from Memory Bus |

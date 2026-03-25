@@ -21116,8 +21116,15 @@ ${info}`);
             inRoutes = false;
             continue;
           }
-          if (line.match(/^\s+type:\s*team/) && currentNode) {
-            isTeam = true;
+          const propFields = /^\s+(type|decide|next|on_fail|on_issues):\s*/;
+          if (line.match(propFields) && currentNode) {
+            if (line.match(/^\s+type:\s*team/)) isTeam = true;
+            inTeammates = false;
+            inRoutes = false;
+            if (currentTm) {
+              teammates.push({ ...currentTm });
+              currentTm = null;
+            }
             continue;
           }
           if (line.match(/^\s+teammates:\s*$/) && currentNode) {
@@ -21148,7 +21155,7 @@ ${info}`);
             }
           }
           if (inRoutes) {
-            const routeMatch = line.match(/^\s+(\S+):\s*"?[^"]*"?\s*$/);
+            const routeMatch = line.match(/^\s{6}(\S+):\s*"[^"]*"\s*$/);
             if (routeMatch) {
               routes.push(routeMatch[1]);
               continue;

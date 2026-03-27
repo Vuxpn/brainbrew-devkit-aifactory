@@ -37,8 +37,8 @@ function resolveScriptPath(script, cwd) {
   return (0, import_path.join)(PLUGIN_SCRIPTS, script);
 }
 var DEFAULT_PLUGIN_HOOKS = {
+  SessionStart: ["session-start.cjs"],
   SessionEnd: ["session-end.cjs"]
-  // Memory bus cleanup
 };
 function loadProjectHooks(event, cwd) {
   const hooks = [];

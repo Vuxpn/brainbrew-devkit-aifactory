@@ -69,7 +69,8 @@ function resolveScriptPath(script: string, cwd: string): string {
 
 // Default plugin hooks that always run (even without project config)
 const DEFAULT_PLUGIN_HOOKS: Record<string, string[]> = {
-  SessionEnd: ['session-end.cjs'],  // Memory bus cleanup
+  SessionStart: ['session-start.cjs'],
+  SessionEnd: ['session-end.cjs'],
 };
 
 function loadProjectHooks(event: string, cwd: string): string[] {

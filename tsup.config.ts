@@ -30,6 +30,7 @@ export default defineConfig([
       'post-agent': 'src/hooks/post-agent.ts',
       'subagent-start': 'src/hooks/subagent-start.ts',
       'subagent-stop': 'src/hooks/subagent-stop.ts',
+      'session-start': 'src/hooks/session-start.ts',
       'session-end': 'src/hooks/session-end.ts',
     },
     format: ['cjs'],

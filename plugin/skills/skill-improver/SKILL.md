@@ -115,7 +115,7 @@ Check that these are used correctly if present:
 | `$ARGUMENTS[N]` or `$N` | 0-based index for specific arg |
 | `${CLAUDE_SESSION_ID}` | Current session ID |
 | `${CLAUDE_SKILL_DIR}` | Path to skill directory |
-| `` !`command` `` | Shell command preprocessed before Claude sees content |
+| Shell bang syntax (exclamation + backticks) | Shell command preprocessed before Claude sees content |
 
 ## Minor Issue Evaluation
 

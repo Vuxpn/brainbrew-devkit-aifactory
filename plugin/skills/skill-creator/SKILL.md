@@ -102,17 +102,11 @@ Use `user-invocable: false` for background knowledge Claude should apply automat
 
 ## Dynamic Context Injection
 
-Use `` !`command` `` to run shell commands before sending to Claude:
+Use shell bang syntax (exclamation mark + backticks around command) to run shell commands before sending to Claude. The command output replaces the placeholder — Claude only sees the result.
 
-```markdown
-## Current branch
-!`git branch --show-current`
-
-## Recent changes
-!`git log --oneline -5`
-```
-
-Commands run immediately; output replaces the placeholder. Claude only sees the result.
+Example syntax (do not copy literally into skills):
+- Exclamation + backtick + "git branch --show-current" + backtick
+- Exclamation + backtick + "git log --oneline -5" + backtick
 
 ## Supporting Files
 

@@ -127,7 +127,7 @@ ls .claude/agents/*.md
 
 ## Add Agent to Chain Flow
 
-Edit `.claude/chain-config.yaml`, add to `flow:` section:
+Edit the active chain file in `.claude/chains/`, add to `flow:` section:
 
 ```yaml
 flow:
@@ -180,7 +180,7 @@ Agent(subagent_type: "security-scan", run_in_background: true)
 ```
 
 ### Chain Team Node — for chain workflows
-In `chain-config.yaml`, use `type: team` to automatically trigger TeamCreate:
+In the active chain file (`.claude/chains/`), use `type: team` to automatically trigger TeamCreate:
 
 ```yaml
 flow:

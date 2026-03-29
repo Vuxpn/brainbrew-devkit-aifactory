@@ -146,7 +146,7 @@ function readActiveChainContent(cwd) {
 // src/hooks/post-agent.ts
 var LOG_FILE = (0, import_path6.join)(TMP_DIR, "agent-output.log");
 var PLANS_DIR = (0, import_path6.join)((0, import_os2.homedir)(), ".claude", "plans");
-var MAX_AGENT_LOOPS = 3;
+var MAX_AGENT_LOOPS = 0;
 function loadChainConfig(cwd) {
   try {
     const content = readActiveChainContent(cwd);
@@ -483,7 +483,7 @@ The chain will continue automatically when the agent finishes.
     if (next && sessionId) {
       const state = getState(sessionId) ?? { previousAgents: [] };
       const nextAgentCount = (state.previousAgents ?? []).filter((a) => a.type === next).length;
-      if (nextAgentCount >= MAX_AGENT_LOOPS) {
+      if (MAX_AGENT_LOOPS > 0 && nextAgentCount >= MAX_AGENT_LOOPS) {
         log(LOG_FILE, `[LOOP BREAK] ${next} already ran ${nextAgentCount} times
 `);
         logEvent({ event: "loop-break", agent: type, next, count: nextAgentCount, session: sessionId });

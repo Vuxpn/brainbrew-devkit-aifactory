@@ -9,7 +9,7 @@ import { readActiveChainContent } from '../utils/chain-resolver.js';
 
 const LOG_FILE = join(TMP_DIR, 'agent-output.log');
 const PLANS_DIR = join(homedir(), '.claude', 'plans');
-const MAX_AGENT_LOOPS = 3;
+const MAX_AGENT_LOOPS = 0;
 
 // ─── Flow Config ─────────────────────────────────────────────────────────────
 
@@ -468,7 +468,7 @@ function main(): void {
       const state = (getState(sessionId) ?? { previousAgents: [] }) as ChainState;
       const nextAgentCount = (state.previousAgents ?? []).filter(a => a.type === next).length;
 
-      if (nextAgentCount >= MAX_AGENT_LOOPS) {
+      if (MAX_AGENT_LOOPS > 0 && nextAgentCount >= MAX_AGENT_LOOPS) {
         log(LOG_FILE, `[LOOP BREAK] ${next} already ran ${nextAgentCount} times\n`);
         logEvent({ event: 'loop-break', agent: type, next, count: nextAgentCount, session: sessionId });
 

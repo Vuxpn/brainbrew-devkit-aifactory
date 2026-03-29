@@ -161,7 +161,7 @@ Or run the skill itself in a subagent by adding `context: fork` and `agent:` to 
 |---|---|---|
 | **Agent Team** | `TeamCreate` + `Agent(team_name)` | Agents need to collaborate, message each other, share tasks |
 | **Parallel subagents** | `Agent(run_in_background)` | Independent tasks, only results matter |
-| **Chain team node** | `type: team` in chain-config.yaml | Parallel step in a chain workflow |
+| **Chain team node** | `type: team` in chain YAML (`.claude/chains/`) | Parallel step in a chain workflow |
 
 If user says "team", "collaborate", "work together" → use **TeamCreate**, NOT multiple Agent calls.
 

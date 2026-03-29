@@ -76,7 +76,7 @@ flow:
 |-------|----------|---------|
 | `routes` | Yes | Map of `agent-name: "description"`. Multiple routes allowed |
 | `decide` | No | AI prompt sent to Haiku to pick route based on agent output |
-| `reset_counters` | No | Set `true` to reset agent loop counters when this node routes (use for approval gates) |
+| `reset_counters` | No | Reset loop counters when routing (for approval gates). Loop protection is off by default. |
 | `next` | No | Legacy: simple next agent (use `routes` instead) |
 | `on_fail` | No | Legacy: fallback on failure keywords |
 | `on_issues` | No | Legacy: fallback on issue keywords |

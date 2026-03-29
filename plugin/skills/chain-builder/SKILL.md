@@ -280,6 +280,30 @@ hooks:
 | `./` | `.claude/hooks/` in project |
 | `/absolute` | Absolute path |
 
+## Post-Bump Tuning
+
+After `template_bump`, review and tune these files:
+
+### 1. Chain Config (`.claude/chains/{name}.yaml`)
+- Adjust routing rules in `decide` prompts
+- Add/remove agents from flow
+- Configure `reset_counters` for approval gates
+
+### 2. Agent Definitions (`.claude/agents/*.md`)
+- Update `description` for your project context
+- Adjust `tools` list (add/remove as needed)
+- Add project-specific skills in `skills:` frontmatter
+
+### 3. Skills (`.claude/skills/*/SKILL.md`)
+- Update skill instructions for your stack/conventions
+- Add project-specific rules and patterns
+- Reference common patterns from `.claude/skills/common/`
+
+### 4. Validate
+```
+mcp__brainbrew__chain_validate()
+```
+
 ## After Setup
 
 Tell user:

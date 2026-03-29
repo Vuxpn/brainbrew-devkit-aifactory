@@ -15,7 +15,15 @@ export interface MemoryAddOptions {
   global?: boolean;
 }
 
+const VALID_PERSISTENCE = ['permanent', 'session', 'chain', 'once'];
+const VALID_PRIORITY = ['low', 'normal', 'high', 'urgent'];
+
 export function addMemory(content: string, options: MemoryAddOptions = {}): void {
+  if (content.length > 2000) {
+    console.error('Error: Message too long (max 2000 chars)');
+    return;
+  }
+
   let target: MessageTarget = 'global';
 
   if (options.agent) {
@@ -28,9 +36,13 @@ export function addMemory(content: string, options: MemoryAddOptions = {}): void
 
   const persistence: MessagePersistence = options.once
     ? 'once'
-    : (options.persistence as MessagePersistence) || 'session';
+    : VALID_PERSISTENCE.includes(options.persistence || '')
+      ? (options.persistence as MessagePersistence)
+      : 'session';
 
-  const priority: MessagePriority = (options.priority as MessagePriority) || 'normal';
+  const priority: MessagePriority = VALID_PRIORITY.includes(options.priority || '')
+    ? (options.priority as MessagePriority)
+    : 'normal';
 
   const msg = publish(content, {
     target,

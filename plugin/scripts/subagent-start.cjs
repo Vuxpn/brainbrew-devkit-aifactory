@@ -125,6 +125,9 @@ function subscribe(agentType, options = {}) {
     consumed: consumeIds.size
   };
 }
+function sanitizeContent(content) {
+  return content.replace(/^#+/gm, "").replace(/\n+/g, " ").slice(0, 500);
+}
 function formatForContext(messages) {
   if (messages.length === 0) return "";
   const priorityGroups = {
@@ -138,7 +141,7 @@ function formatForContext(messages) {
   if (priorityGroups.urgent.length > 0) {
     output += "### \u26A0\uFE0F URGENT\n";
     priorityGroups.urgent.forEach((m) => {
-      output += `- ${m.content}
+      output += `- ${sanitizeContent(m.content)}
 `;
     });
     output += "\n";
@@ -146,7 +149,7 @@ function formatForContext(messages) {
   if (priorityGroups.high.length > 0) {
     output += "### High Priority\n";
     priorityGroups.high.forEach((m) => {
-      output += `- ${m.content}
+      output += `- ${sanitizeContent(m.content)}
 `;
     });
     output += "\n";
@@ -155,7 +158,7 @@ function formatForContext(messages) {
   if (normalAndLow.length > 0) {
     output += "### Context\n";
     normalAndLow.forEach((m) => {
-      output += `- ${m.content}
+      output += `- ${sanitizeContent(m.content)}
 `;
     });
   }

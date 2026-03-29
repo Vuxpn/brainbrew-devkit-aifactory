@@ -274,9 +274,13 @@ export function clearChain(chainId: string, cwd?: string): number {
   return cleared;
 }
 
-/**
- * Format messages for injection into agent context
- */
+function sanitizeContent(content: string): string {
+  return content
+    .replace(/^#+/gm, '')
+    .replace(/\n+/g, ' ')
+    .slice(0, 500);
+}
+
 export function formatForContext(messages: Message[]): string {
   if (messages.length === 0) return '';
 
@@ -294,7 +298,7 @@ export function formatForContext(messages: Message[]): string {
   if (priorityGroups.urgent.length > 0) {
     output += '### ⚠️ URGENT\n';
     priorityGroups.urgent.forEach(m => {
-      output += `- ${m.content}\n`;
+      output += `- ${sanitizeContent(m.content)}\n`;
     });
     output += '\n';
   }
@@ -302,7 +306,7 @@ export function formatForContext(messages: Message[]): string {
   if (priorityGroups.high.length > 0) {
     output += '### High Priority\n';
     priorityGroups.high.forEach(m => {
-      output += `- ${m.content}\n`;
+      output += `- ${sanitizeContent(m.content)}\n`;
     });
     output += '\n';
   }
@@ -311,7 +315,7 @@ export function formatForContext(messages: Message[]): string {
   if (normalAndLow.length > 0) {
     output += '### Context\n';
     normalAndLow.forEach(m => {
-      output += `- ${m.content}\n`;
+      output += `- ${sanitizeContent(m.content)}\n`;
     });
   }
 

@@ -456,7 +456,12 @@ function main(): void {
       }
     }
 
-    // Loop protection
+    if (next && sessionId && type === 'plan-reviewer') {
+      const state = (getState(sessionId) ?? { previousAgents: [] }) as ChainState;
+      state.previousAgents = (state.previousAgents ?? []).filter(a => a.type !== next);
+      updateState(sessionId, state as Parameters<typeof updateState>[1]);
+    }
+
     if (next && sessionId) {
       const state = (getState(sessionId) ?? { previousAgents: [] }) as ChainState;
       const nextAgentCount = (state.previousAgents ?? []).filter(a => a.type === next).length;

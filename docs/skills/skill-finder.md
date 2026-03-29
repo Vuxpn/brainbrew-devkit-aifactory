@@ -1,0 +1,68 @@
+# skill-finder
+
+Search and install skills from multiple sources.
+
+## Triggers
+
+- "find skill"
+- "search skill"
+- "install skill"
+
+## Workflow
+
+1. **Search** — try sources in priority order
+2. **Review** — present top results to user
+3. **Install** — fetch SKILL.md → write to `.claude/skills/{name}/SKILL.md`
+
+## Search Sources
+
+### 1. Vercel Skills CLI (recommended)
+
+```bash
+npx skills search "SEARCH_TERM"
+```
+
+Install directly:
+
+```bash
+npx skills add SKILL_NAME --dir .claude/skills -y
+```
+
+### 2. GitHub Search
+
+```bash
+gh search code "SEARCH_TERM" --filename SKILL.md --language markdown -L 10
+```
+
+Fetch raw SKILL.md:
+
+```bash
+gh api repos/OWNER/REPO/contents/skills/SKILL_NAME/SKILL.md -q '.content' | base64 -d
+```
+
+### 3. Anthropic Official Skills
+
+```bash
+gh api repos/anthropics/skills/contents/skills -q '.[].name'
+```
+
+Fetch specific skill:
+
+```bash
+gh api repos/anthropics/skills/contents/skills/SKILL_NAME/SKILL.md -q '.content' | base64 -d
+```
+
+## Install
+
+After user picks a skill:
+
+1. Prefer `npx skills add SKILL_NAME --dir .claude/skills -y`
+2. Otherwise: fetch SKILL.md + references/ → write to `.claude/skills/{name}/`
+
+## Rules
+
+- Install to `.claude/skills/` (project root), NOT `~/.claude/skills/`
+- Always show skill name and description before installing
+- Ask user before installing — never auto-install without confirmation
+- Prefer Vercel Skills CLI first (best UX), then GitHub
+- Always use `-y` flag with `npx skills add` to skip interactive prompts

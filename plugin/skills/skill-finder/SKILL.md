@@ -22,10 +22,10 @@ Search and install skills into `.claude/skills/` (project root).
 npx skills search "SEARCH_TERM"
 ```
 
-Install directly:
+Install directly (use `-y` to skip interactive prompts):
 
 ```bash
-npx skills install SKILL_NAME --dir .claude/skills
+npx skills add SKILL_NAME --dir .claude/skills -y
 ```
 
 ### 2. GitHub Search (free, unlimited)
@@ -55,7 +55,7 @@ gh api repos/anthropics/skills/contents/skills/SKILL_NAME/SKILL.md -q '.content'
 ## Install
 
 After user picks a skill:
-1. Prefer `npx skills install SKILL_NAME --dir .claude/skills` if available
+1. Prefer `npx skills add SKILL_NAME --dir .claude/skills -y` (use `-y` to skip prompts)
 2. Otherwise: fetch SKILL.md + references/ → write to `.claude/skills/{name}/`
 
 ## Rules
@@ -64,3 +64,4 @@ After user picks a skill:
 - Always show skill name and description before installing
 - Ask user before installing — never auto-install without confirmation
 - Prefer Vercel Skills CLI first (best UX), then GitHub
+- **ALWAYS use `-y` flag** with `npx skills add` to skip interactive prompts

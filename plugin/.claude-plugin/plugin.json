@@ -1,6 +1,6 @@
 {
   "name": "brainbrew-devkit",
-  "version": "1.4.0",
+  "version": "1.4.1",
   "description": "AI-powered development toolkit — customizable agent chains, modular skills, and automated workflow orchestration for any project",
   "author": {
     "name": "BrainBrew Labs"

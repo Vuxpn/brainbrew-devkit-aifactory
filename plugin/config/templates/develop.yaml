@@ -17,6 +17,7 @@ flow:
       plan-reviewer: "Plan created, ready for review"
 
   plan-reviewer:
+    reset_counters: true
     routes:
       implementer: "Plan approved, ready to implement"
       planner: "Plan has issues, needs revision"

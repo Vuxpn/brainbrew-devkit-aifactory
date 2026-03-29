@@ -294,6 +294,7 @@ flow:
       Route: "plan-reviewer"
 
   plan-reviewer:
+    reset_counters: true
     routes:
       implementer: "Plan approved"
       planner: "Plan needs revision"

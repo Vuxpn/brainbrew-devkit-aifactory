@@ -28,6 +28,7 @@ interface FlowEntry {
   next?: string | null;
   on_issues?: string;
   on_fail?: string;
+  reset_counters?: string;
 }
 
 interface ChainConfig {
@@ -456,7 +457,8 @@ function main(): void {
       }
     }
 
-    if (next && sessionId && type === 'plan-reviewer') {
+    const currentFlow = config.flow?.[type.toLowerCase()];
+    if (next && sessionId && currentFlow?.reset_counters === 'true') {
       const state = (getState(sessionId) ?? { previousAgents: [] }) as ChainState;
       state.previousAgents = (state.previousAgents ?? []).filter(a => a.type !== next);
       updateState(sessionId, state as Parameters<typeof updateState>[1]);

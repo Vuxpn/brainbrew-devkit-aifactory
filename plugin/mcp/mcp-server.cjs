@@ -20982,6 +20982,7 @@ function copyDirRecursive(src, dest) {
 }
 var PLUGIN_ROOT = process.env.CLAUDE_PLUGIN_ROOT || (0, import_path3.dirname)((0, import_path3.dirname)((0, import_path3.dirname)(__filename)));
 var TEMPLATES_DIR = (0, import_path3.join)(PLUGIN_ROOT, "config", "templates");
+var PLUGINS_DIR = (0, import_path3.join)((0, import_path3.dirname)(PLUGIN_ROOT), "plugins");
 var server = new Server(
   {
     name: "brainbrew",
@@ -21034,6 +21035,20 @@ var TOOLS = [
         chain: { type: "string", description: "Chain name to activate (without .yaml extension)" }
       },
       required: ["chain"]
+    }
+  },
+  // ─── Plugin Tools ───
+  {
+    name: "plugin_list",
+    description: "List all available plugins bundled with brainbrew-devkit. Returns name, description, keywords, and path for each plugin. Use to discover plugins before installing.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        query: {
+          type: "string",
+          description: "Optional search query to filter plugins by name, description, or keywords (case-insensitive)"
+        }
+      }
     }
   },
   // ─── Memory Bus Tools ───
@@ -21445,6 +21460,40 @@ ${output}`);
           cwd
         });
         return success2(`\u2713 Cleared ${cleared} messages`);
+      }
+      case "plugin_list": {
+        const query = (args?.query || "").toLowerCase().trim();
+        if (!(0, import_fs3.existsSync)(PLUGINS_DIR)) {
+          return success2("No plugins directory found.");
+        }
+        const entries = (0, import_fs3.readdirSync)(PLUGINS_DIR).filter(
+          (f) => (0, import_fs3.statSync)((0, import_path3.join)(PLUGINS_DIR, f)).isDirectory()
+        );
+        const plugins = entries.map((dir) => {
+          const manifestPath = (0, import_path3.join)(PLUGINS_DIR, dir, "plugin.json");
+          if (!(0, import_fs3.existsSync)(manifestPath)) return null;
+          try {
+            const manifest = JSON.parse((0, import_fs3.readFileSync)(manifestPath, "utf-8"));
+            return { ...manifest, path: (0, import_path3.join)(PLUGINS_DIR, dir) };
+          } catch {
+            return null;
+          }
+        }).filter(Boolean);
+        const filtered = query ? plugins.filter(
+          (p) => (p.name || "").toLowerCase().includes(query) || (p.description || "").toLowerCase().includes(query) || (p.keywords || []).some((k) => k.toLowerCase().includes(query))
+        ) : plugins;
+        if (filtered.length === 0) {
+          return success2(query ? `No plugins found matching "${query}".` : "No plugins available.");
+        }
+        const lines = filtered.map(
+          (p) => `**${p.name}** (${p.runtime || "unknown"})
+  ${p.description}
+  keywords: ${(p.keywords || []).join(", ")}
+  path: ${p.path}`
+        ).join("\n\n");
+        return success2(`Found ${filtered.length} plugin(s)${query ? ` matching "${query}"` : ""}:
+
+${lines}`);
       }
       default:
         return error2(`Unknown tool: ${name}`);

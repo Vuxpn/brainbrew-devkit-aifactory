@@ -1,0 +1,8 @@
+[package]
+name = "fast-diff"
+version = "1.0.0"
+edition = "2021"
+
+[[bin]]
+name = "fast-diff"
+path = "src/main.rs"

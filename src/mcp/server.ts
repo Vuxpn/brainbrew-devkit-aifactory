@@ -34,6 +34,7 @@ import { MessageTarget, MessagePersistence, MessagePriority } from '../memory/ty
 // Plugin root from env
 const PLUGIN_ROOT = process.env.CLAUDE_PLUGIN_ROOT || dirname(dirname(dirname(__filename)));
 const TEMPLATES_DIR = join(PLUGIN_ROOT, 'config', 'templates');
+const PLUGINS_DIR = join(dirname(PLUGIN_ROOT), 'plugins');
 
 const server = new Server(
   {
@@ -91,6 +92,21 @@ const TOOLS = [
         chain: { type: 'string', description: 'Chain name to activate (without .yaml extension)' },
       },
       required: ['chain'],
+    },
+  },
+
+  // ─── Plugin Tools ───
+  {
+    name: 'plugin_list',
+    description: 'List all available plugins bundled with brainbrew-devkit. Returns name, description, keywords, and path for each plugin. Use to discover plugins before installing.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        query: {
+          type: 'string',
+          description: 'Optional search query to filter plugins by name, description, or keywords (case-insensitive)',
+        },
+      },
     },
   },
 
@@ -518,6 +534,47 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         });
 
         return success(`✓ Cleared ${cleared} messages`);
+      }
+
+      case 'plugin_list': {
+        const query = (args?.query as string || '').toLowerCase().trim();
+
+        if (!existsSync(PLUGINS_DIR)) {
+          return success('No plugins directory found.');
+        }
+
+        const entries = readdirSync(PLUGINS_DIR).filter(f =>
+          statSync(join(PLUGINS_DIR, f)).isDirectory()
+        );
+
+        const plugins = entries.map(dir => {
+          const manifestPath = join(PLUGINS_DIR, dir, 'plugin.json');
+          if (!existsSync(manifestPath)) return null;
+          try {
+            const manifest = JSON.parse(readFileSync(manifestPath, 'utf-8'));
+            return { ...manifest, path: join(PLUGINS_DIR, dir) };
+          } catch {
+            return null;
+          }
+        }).filter(Boolean) as Array<Record<string, any>>;
+
+        const filtered = query
+          ? plugins.filter(p =>
+              (p.name || '').toLowerCase().includes(query) ||
+              (p.description || '').toLowerCase().includes(query) ||
+              (p.keywords || []).some((k: string) => k.toLowerCase().includes(query))
+            )
+          : plugins;
+
+        if (filtered.length === 0) {
+          return success(query ? `No plugins found matching "${query}".` : 'No plugins available.');
+        }
+
+        const lines = filtered.map(p =>
+          `**${p.name}** (${p.runtime || 'unknown'})\n  ${p.description}\n  keywords: ${(p.keywords || []).join(', ')}\n  path: ${p.path}`
+        ).join('\n\n');
+
+        return success(`Found ${filtered.length} plugin(s)${query ? ` matching "${query}"` : ''}:\n\n${lines}`);
       }
 
       default:

@@ -1,0 +1,8 @@
+{
+  "name": "notify",
+  "description": "Send OS notification when Claude finishes a task",
+  "version": "1.0.0",
+  "author": "thuanpham582002",
+  "runtime": "bash",
+  "keywords": ["notification", "productivity", "macos", "linux", "windows"]
+}

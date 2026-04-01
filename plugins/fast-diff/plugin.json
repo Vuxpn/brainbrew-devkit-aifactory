@@ -1,0 +1,8 @@
+{
+  "name": "fast-diff",
+  "description": "Show git diff summary at session end using a compiled Rust binary",
+  "version": "1.0.0",
+  "author": "thuanpham582002",
+  "runtime": "rust",
+  "keywords": ["git", "diff", "summary", "rust"]
+}

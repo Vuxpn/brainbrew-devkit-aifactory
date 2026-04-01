@@ -304,6 +304,28 @@ After `template_bump`, review and tune these files:
 mcp__brainbrew__chain_validate()
 ```
 
+## Install Plugins
+
+Plugins extend Claude Code sessions with background tools (notifications, cost tracking, sandboxing, etc.).
+
+Browse available plugins:
+```
+mcp__brainbrew__plugin_list()
+```
+
+Search by keyword:
+```
+mcp__brainbrew__plugin_list(query: "docker")
+mcp__brainbrew__plugin_list(query: "cost")
+```
+
+Each result includes the plugin `path`. Read its `CLAUDE.md` for install instructions — the AI handles the rest.
+
+To customize a plugin, copy it into the project:
+```bash
+cp -r <plugin-path> .claude/plugins/<name>/
+```
+
 ## After Setup
 
 Tell user:
@@ -314,4 +336,5 @@ Workflow ready! You can:
 - "Add a team node for parallel review"
 - "Tell implementer to Z" (Memory Bus)
 - "Show the chain flow"
+- "List available plugins" (plugin_list)
 ```

@@ -1,0 +1,8 @@
+{
+  "name": "cost-tracker",
+  "description": "Track Claude API token usage and estimate cost per session",
+  "version": "1.0.0",
+  "author": "thuanpham582002",
+  "runtime": "python",
+  "keywords": ["cost", "tokens", "usage", "analytics"]
+}

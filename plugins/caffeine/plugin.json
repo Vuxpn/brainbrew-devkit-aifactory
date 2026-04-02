@@ -1,0 +1,8 @@
+{
+  "name": "caffeine",
+  "description": "Prevent Mac sleep during Claude Code sessions using caffeinate",
+  "version": "1.0.0",
+  "author": "ntheanh201",
+  "runtime": "bash",
+  "keywords": ["macos", "caffeinate", "sleep", "productivity", "hooks"]
+}

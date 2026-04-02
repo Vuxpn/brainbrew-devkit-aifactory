@@ -1,12 +1,22 @@
-import { readFileSync, existsSync, mkdirSync, writeFileSync, unlinkSync } from 'fs';
+import { readFileSync, existsSync } from 'fs';
 import { join } from 'path';
 import { verify, getRetries, setRetries, clearRetries, MAX_RETRIES } from '../ai/verifier.js';
 import { log, logEvent } from '../utils/logger.js';
 import { TMP_DIR } from '../utils/paths.js';
+import { getState, updateState } from '../utils/state.js';
+import { getWorktreeStatus, commitWorktreeChanges } from '../utils/worktree.js';
 
 const LOG_FILE = join(TMP_DIR, 'subagent-stop.log');
 
-// ─── Main ─────────────────────────────────────────────────────────────────────
+interface WorktreeState {
+  path: string;
+  branch: string;
+  agentId: string;
+  agentType: string;
+  createdAt: string;
+  committed?: boolean;
+  commitHash?: string;
+}
 
 function main(): void {
   try {
@@ -19,6 +29,7 @@ function main(): void {
       subagent_type?: string;
       agent_id?: string;
       last_assistant_message?: string;
+      session_id?: string;
     };
 
     if (payload.stop_hook_active) {
@@ -28,9 +39,65 @@ function main(): void {
 
     const agentType = payload.agent_type ?? payload.subagent_type ?? '';
     const agentId = payload.agent_id ?? 'x';
+    const sessionId = payload.session_id ?? '';
     const output = payload.last_assistant_message ?? '';
 
-    // Check retries
+    const state = getState(sessionId);
+    const worktree = state?.worktree;
+
+    let worktreeInfo: { path?: string; branch?: string; commitHash?: string; status?: string } = {};
+
+    if (worktree && worktree.agentId === agentId) {
+      const wtStatus = getWorktreeStatus(worktree.path);
+
+      if (wtStatus.hasChanges && !wtStatus.commitHash) {
+        log(LOG_FILE, `${agentType}:${agentId} has uncommitted changes in worktree`);
+
+        const commitMessage = `${agentType}: ${agentId} - Auto-committed changes`;
+        const commitResult = commitWorktreeChanges(worktree.path, commitMessage);
+
+        if (commitResult.success && commitResult.commitHash) {
+          updateState(sessionId, {
+            worktree: {
+              ...worktree,
+              committed: true,
+              commitHash: commitResult.commitHash,
+            },
+          });
+
+          worktreeInfo = {
+            path: worktree.path,
+            branch: worktree.branch,
+            commitHash: commitResult.commitHash,
+            status: 'committed',
+          };
+
+          log(LOG_FILE, `[WORKTREE] Auto-commited: ${commitResult.commitHash}`);
+          logEvent({
+            event: 'worktree-committed',
+            agent: agentType,
+            id: agentId,
+            commitHash: commitResult.commitHash,
+          });
+        } else {
+          log(LOG_FILE, `[WORKTREE] Auto-commit failed: ${commitResult.error}`);
+        }
+      } else if (wtStatus.commitHash) {
+        worktreeInfo = {
+          path: worktree.path,
+          branch: worktree.branch,
+          commitHash: wtStatus.commitHash,
+          status: 'committed',
+        };
+      } else {
+        worktreeInfo = {
+          path: worktree.path,
+          branch: worktree.branch,
+          status: 'no-changes',
+        };
+      }
+    }
+
     const retries = getRetries(agentId);
     if (retries >= MAX_RETRIES) {
       log(LOG_FILE, `${agentType}:${agentId} max retries (${MAX_RETRIES}), allow`);
@@ -38,7 +105,6 @@ function main(): void {
       process.exit(0);
     }
 
-    // Verify output quality
     const result = verify(agentType, output);
     const outputPreview = output.substring(0, 100).replace(/\n/g, ' ');
 
@@ -52,12 +118,40 @@ function main(): void {
         method: result.method,
         outputLen: output.length,
         outputPreview,
+        worktree: worktreeInfo,
       });
       clearRetries(agentId);
+
+      if (worktree) {
+        const enhancedOutput = output + `\n\n### Worktree Info
+- **Path**: \`${worktreeInfo.path}\`
+- **Branch**: \`${worktreeInfo.branch}\`
+- **Commit**: \`${worktreeInfo.commitHash ?? 'N/A'}\`
+- **Status**: ${worktreeInfo.status ?? 'unknown'}
+
+To review changes:
+\`\`\`bash
+cd ${worktreeInfo.path}
+git diff HEAD
+\`\`\`
+
+To merge (if needed):
+\`\`\`bash
+git merge ${worktreeInfo.branch}
+\`\`\`
+`;
+        console.log(JSON.stringify({
+          hookSpecificOutput: {
+            hookEventName: 'SubagentStop',
+            additionalContext: `<system-reminder>\n## Worktree Isolation Complete\n\n${enhancedOutput}\n</system-reminder>`,
+          },
+        }));
+        process.exit(0);
+      }
+
       process.exit(0);
     }
 
-    // Block with feedback
     setRetries(agentId, retries + 1);
     const feedback = (result.issues?.length ?? 0) > 0
       ? `Issues:\n- ${result.issues!.join('\n- ')}\n\nFix: ${result.suggestion}`

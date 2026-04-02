@@ -1,8 +1,8 @@
 "use strict";
 
 // src/hooks/subagent-stop.ts
-var import_fs4 = require("fs");
-var import_path5 = require("path");
+var import_fs5 = require("fs");
+var import_path6 = require("path");
 
 // src/ai/verifier.ts
 var import_fs3 = require("fs");
@@ -341,11 +341,110 @@ function clearRetries(agentId) {
   if ((0, import_fs3.existsSync)(f)) (0, import_fs3.unlinkSync)(f);
 }
 
+// src/utils/state.ts
+var import_fs4 = require("fs");
+var import_path5 = require("path");
+var STATE_DIR2 = (0, import_path5.join)(TMP_DIR, "chain-state");
+function statePath(sessionId) {
+  return (0, import_path5.join)(STATE_DIR2, `${sessionId}.json`);
+}
+function getState(sessionId) {
+  if (!sessionId) return null;
+  const file = statePath(sessionId);
+  if (!(0, import_fs4.existsSync)(file)) return null;
+  try {
+    return JSON.parse((0, import_fs4.readFileSync)(file, "utf-8"));
+  } catch {
+    return null;
+  }
+}
+function updateState(sessionId, updates) {
+  if (!sessionId) return;
+  if (!(0, import_fs4.existsSync)(STATE_DIR2)) (0, import_fs4.mkdirSync)(STATE_DIR2, { recursive: true });
+  const current = getState(sessionId) || { previousAgents: [] };
+  const merged = { ...current, ...updates };
+  (0, import_fs4.writeFileSync)(statePath(sessionId), JSON.stringify(merged, null, 2));
+}
+
+// src/utils/worktree.ts
+var import_child_process2 = require("child_process");
+function commitWorktreeChanges(worktreePath, message) {
+  try {
+    (0, import_child_process2.execSync)("git add -A", {
+      cwd: worktreePath,
+      encoding: "utf-8",
+      stdio: ["pipe", "pipe", "inherit"]
+    });
+    const status = (0, import_child_process2.execSync)("git status --porcelain", {
+      cwd: worktreePath,
+      encoding: "utf-8",
+      stdio: ["pipe", "pipe", "ignore"]
+    }).trim();
+    if (!status) {
+      return { success: false, error: "No changes to commit" };
+    }
+    (0, import_child_process2.execSync)(`git commit -m "${message.replace(/"/g, '\\"')}"`, {
+      cwd: worktreePath,
+      encoding: "utf-8",
+      stdio: ["pipe", "pipe", "inherit"]
+    });
+    const commitHash = (0, import_child_process2.execSync)("git rev-parse HEAD", {
+      cwd: worktreePath,
+      encoding: "utf-8",
+      stdio: ["pipe", "pipe", "ignore"]
+    }).trim();
+    return { success: true, commitHash };
+  } catch (e) {
+    return {
+      success: false,
+      error: e.stderr ?? e.message
+    };
+  }
+}
+function getWorktreeStatus(worktreePath) {
+  try {
+    const branch = getCurrentBranchFromWorktree(worktreePath);
+    const status = (0, import_child_process2.execSync)("git status --porcelain", {
+      cwd: worktreePath,
+      encoding: "utf-8",
+      stdio: ["pipe", "pipe", "ignore"]
+    }).trim();
+    let commitHash;
+    try {
+      commitHash = (0, import_child_process2.execSync)("git rev-parse HEAD", {
+        cwd: worktreePath,
+        encoding: "utf-8",
+        stdio: ["pipe", "pipe", "ignore"]
+      }).trim();
+    } catch {
+      commitHash = void 0;
+    }
+    return {
+      hasChanges: status.length > 0,
+      commitHash,
+      branch
+    };
+  } catch {
+    return {
+      hasChanges: false,
+      branch: "unknown"
+    };
+  }
+}
+function getCurrentBranchFromWorktree(worktreePath) {
+  const branch = (0, import_child_process2.execSync)("git rev-parse --abbrev-ref HEAD", {
+    cwd: worktreePath,
+    encoding: "utf-8",
+    stdio: ["pipe", "pipe", "ignore"]
+  }).trim();
+  return branch;
+}
+
 // src/hooks/subagent-stop.ts
-var LOG_FILE2 = (0, import_path5.join)(TMP_DIR, "subagent-stop.log");
+var LOG_FILE2 = (0, import_path6.join)(TMP_DIR, "subagent-stop.log");
 function main() {
   try {
-    const stdin = (0, import_fs4.readFileSync)(0, "utf-8").trim();
+    const stdin = (0, import_fs5.readFileSync)(0, "utf-8").trim();
     if (!stdin) process.exit(0);
     const payload = JSON.parse(stdin);
     if (payload.stop_hook_active) {
@@ -354,7 +453,56 @@ function main() {
     }
     const agentType = payload.agent_type ?? payload.subagent_type ?? "";
     const agentId = payload.agent_id ?? "x";
+    const sessionId = payload.session_id ?? "";
     const output = payload.last_assistant_message ?? "";
+    const state = getState(sessionId);
+    const worktree = state?.worktree;
+    let worktreeInfo = {};
+    if (worktree && worktree.agentId === agentId) {
+      const wtStatus = getWorktreeStatus(worktree.path);
+      if (wtStatus.hasChanges && !wtStatus.commitHash) {
+        log(LOG_FILE2, `${agentType}:${agentId} has uncommitted changes in worktree`);
+        const commitMessage = `${agentType}: ${agentId} - Auto-committed changes`;
+        const commitResult = commitWorktreeChanges(worktree.path, commitMessage);
+        if (commitResult.success && commitResult.commitHash) {
+          updateState(sessionId, {
+            worktree: {
+              ...worktree,
+              committed: true,
+              commitHash: commitResult.commitHash
+            }
+          });
+          worktreeInfo = {
+            path: worktree.path,
+            branch: worktree.branch,
+            commitHash: commitResult.commitHash,
+            status: "committed"
+          };
+          log(LOG_FILE2, `[WORKTREE] Auto-commited: ${commitResult.commitHash}`);
+          logEvent({
+            event: "worktree-committed",
+            agent: agentType,
+            id: agentId,
+            commitHash: commitResult.commitHash
+          });
+        } else {
+          log(LOG_FILE2, `[WORKTREE] Auto-commit failed: ${commitResult.error}`);
+        }
+      } else if (wtStatus.commitHash) {
+        worktreeInfo = {
+          path: worktree.path,
+          branch: worktree.branch,
+          commitHash: wtStatus.commitHash,
+          status: "committed"
+        };
+      } else {
+        worktreeInfo = {
+          path: worktree.path,
+          branch: worktree.branch,
+          status: "no-changes"
+        };
+      }
+    }
     const retries = getRetries(agentId);
     if (retries >= MAX_RETRIES) {
       log(LOG_FILE2, `${agentType}:${agentId} max retries (${MAX_RETRIES}), allow`);
@@ -372,9 +520,42 @@ function main() {
         result: "pass",
         method: result.method,
         outputLen: output.length,
-        outputPreview
+        outputPreview,
+        worktree: worktreeInfo
       });
       clearRetries(agentId);
+      if (worktree) {
+        const enhancedOutput = output + `
+
+### Worktree Info
+- **Path**: \`${worktreeInfo.path}\`
+- **Branch**: \`${worktreeInfo.branch}\`
+- **Commit**: \`${worktreeInfo.commitHash ?? "N/A"}\`
+- **Status**: ${worktreeInfo.status ?? "unknown"}
+
+To review changes:
+\`\`\`bash
+cd ${worktreeInfo.path}
+git diff HEAD
+\`\`\`
+
+To merge (if needed):
+\`\`\`bash
+git merge ${worktreeInfo.branch}
+\`\`\`
+`;
+        console.log(JSON.stringify({
+          hookSpecificOutput: {
+            hookEventName: "SubagentStop",
+            additionalContext: `<system-reminder>
+## Worktree Isolation Complete
+
+${enhancedOutput}
+</system-reminder>`
+          }
+        }));
+        process.exit(0);
+      }
       process.exit(0);
     }
     setRetries(agentId, retries + 1);

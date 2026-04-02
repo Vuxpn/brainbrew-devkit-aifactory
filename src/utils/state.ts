@@ -18,6 +18,15 @@ interface ChainState {
     teammates: Array<{ name: string; agent: string; status: 'pending' | 'running' | 'complete' }>;
     startedAt: string;
   };
+  worktree?: {
+    path: string;
+    branch: string;
+    agentId: string;
+    agentType: string;
+    createdAt: string;
+    committed?: boolean;
+    commitHash?: string;
+  };
 }
 
 function statePath(sessionId: string): string {

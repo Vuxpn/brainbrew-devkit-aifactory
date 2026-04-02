@@ -1,8 +1,16 @@
 {
   "version": "2.0",
+  "isolation": {
+    "enabled": true,
+    "method": "worktree",
+    "autoCommit": true,
+    "requireReview": false,
+    "cleanupOnSessionEnd": false
+  },
   "agents": {
     "planner": {
       "chainNext": "plan-reviewer",
+      "isolation": "worktree",
       "verification": {
         "minLength": 300,
         "required": ["markdown headers", "numbered steps", "file references"],
@@ -67,6 +75,7 @@
     },
     "implementer": {
       "chainNext": "code-reviewer",
+      "isolation": "worktree",
       "verification": {
         "minLength": 100,
         "required": ["code blocks", "file operations"],
@@ -83,7 +92,7 @@
           "min length": "Add more implementation details"
         }
       },
-      "instructions": "## Implementer Guidelines\n- Write actual code, not descriptions\n- Use Edit/Write tools for file changes\n- Follow existing codebase patterns\n- Test changes compile/run"
+      "instructions": "## Implementer Guidelines\n- Worktree isolation enabled for safe coding\n- MUST commit changes before finishing\n- Work in isolated worktree: .claude/worktrees/<agentId>\n- Write actual code, not descriptions\n- Use Edit/Write tools for file changes\n- Follow existing codebase patterns\n- Test changes compile/run"
     },
     "code-reviewer": {
       "chainNext": "tester",
@@ -127,6 +136,7 @@
     },
     "debugger": {
       "chainNext": "implementer",
+      "isolation": "worktree",
       "verification": {
         "minLength": 100,
         "required": ["root cause", "solution", "location"],
@@ -145,7 +155,7 @@
           "min length": "Add more debugging details"
         }
       },
-      "instructions": "## Debugger Guidelines\n- Identify root cause, not just symptoms\n- Provide specific file:line locations\n- Suggest concrete fix steps\n- Verify fix resolves issue"
+      "instructions": "## Debugger Guidelines\n- Worktree isolation enabled for safe debugging\n- MUST commit diagnostic changes before finishing\n- Identify root cause, not just symptoms\n- Provide specific file:line locations\n- Suggest concrete fix steps\n- Verify fix resolves issue"
     },
     "researcher": {
       "chainNext": null,

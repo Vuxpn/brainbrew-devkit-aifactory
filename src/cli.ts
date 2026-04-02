@@ -10,6 +10,7 @@ import { initCommand } from './commands/init.js';
 import { exportCommand } from './commands/export.js';
 import { hookCommand } from './commands/hook.js';
 import { memoryCommands } from './memory/cli.js';
+import { worktreeReviewCommand } from './commands/worktree-review.js';
 
 const VERSION = '0.2.0';
 
@@ -53,6 +54,7 @@ Commands:
   link --from X --to Y          Set routing between agents
   export --name N               Export current config to YAML
   hook <subcommand>             Manage hooks (global and per-project)
+  worktree-review               Review and merge agent worktrees
 
 Hook subcommands:
   hook list                     List global hooks
@@ -164,6 +166,7 @@ async function main(): Promise<void> {
     case 'export': return exportCommand(flags);
     case 'hook': return hookCommand(args, flags);
     case 'memory': return memoryCommand(args, flags);
+    case 'worktree-review': return worktreeReviewCommand(args, flags);
     default:
       console.error(`Unknown command: ${command}`);
       printHelp();

@@ -1,21 +1,28 @@
 import { readFileSync } from 'fs';
-import { getState } from '../utils/state.js';
+import { getState, updateState } from '../utils/state.js';
 import { log, logEvent } from '../utils/logger.js';
 import { CHAIN_CONFIG_FILE, VERIFICATION_RULES_FILE, TMP_DIR } from '../utils/paths.js';
 import { subscribe, formatForContext } from '../memory/bus.js';
 import { join } from 'path';
+import { createWorktree, initWorktreeSupport } from '../utils/worktree.js';
 
 const LOG_FILE = join(TMP_DIR, 'subagent-start.log');
-
-// ─── Config ───────────────────────────────────────────────────────────────────
 
 interface AgentConfig {
   chainNext?: string | null;
   instructions?: string;
+  isolation?: 'worktree' | 'none';
 }
 
 interface ChainConfig {
   agents: Record<string, AgentConfig>;
+  isolation?: {
+    enabled: boolean;
+    method: 'worktree' | 'none';
+    autoCommit: boolean;
+    requireReview: boolean;
+    cleanupOnSessionEnd: boolean;
+  };
 }
 
 let CONFIG: ChainConfig = { agents: {} };
@@ -34,7 +41,17 @@ function getAgentConfig(type: string): AgentConfig {
   return CONFIG.agents[type.toLowerCase()] ?? {};
 }
 
-// ─── Main ─────────────────────────────────────────────────────────────────────
+function shouldUseWorktree(type: string): boolean {
+  const agentConfig = getAgentConfig(type);
+  const globalIsolation = CONFIG.isolation;
+
+  if (globalIsolation?.enabled === false) return false;
+
+  if (agentConfig.isolation === 'worktree') return true;
+  if (agentConfig.isolation === 'none') return false;
+
+  return globalIsolation?.method === 'worktree' || false;
+}
 
 function main(): void {
   try {
@@ -67,6 +84,62 @@ function main(): void {
 - You can read the main transcript to understand parent context if needed.
 `;
 
+    const useWorktree = shouldUseWorktree(type);
+
+    if (useWorktree) {
+      initWorktreeSupport();
+
+      try {
+        const worktree = createWorktree(type, id);
+
+        const state = getState(sessionId) ?? {};
+        updateState(sessionId, {
+          ...state,
+          worktree: {
+            path: worktree.path,
+            branch: worktree.branch,
+            agentId: id,
+            agentType: type,
+            createdAt: new Date().toISOString(),
+          },
+        });
+
+        context += `
+## Worktree Isolation (ACTIVE)
+You are working in an **isolated git worktree**:
+- **Path**: \`${worktree.path}\`
+- **Branch**: \`${worktree.branch}\`
+
+### Requirements
+1. All file changes must be made in this worktree
+2. You MUST commit your changes before finishing: \`git add -A && git commit -m "message"\`
+3. After commit, the worktree will be available for review
+4. Changes will NOT affect the main codebase until merged
+
+### Commands
+- Check status: \`git status\`
+- Stage all: \`git add -A\`
+- Commit: \`git commit -m "your message"\`
+- View diff: \`git diff HEAD\`
+`;
+
+        log(LOG_FILE, `[WORKTREE] Created ${worktree.path} (${worktree.branch})`);
+        logEvent({
+          event: 'worktree-created',
+          agent: type,
+          id,
+          path: worktree.path,
+          branch: worktree.branch,
+        });
+      } catch (e) {
+        log(LOG_FILE, `[WORKTREE] Failed to create: ${(e as Error).message}`);
+        context += `
+## Worktree Warning
+Failed to create isolated worktree. Proceeding without isolation.
+`;
+      }
+    }
+
     if (chainNext) {
       context += `
 ## Chain Workflow
@@ -79,7 +152,6 @@ Ensure your output is complete enough for the next agent to proceed.
       context += instructions;
     }
 
-    // Special instruction for git-manager: check plan for remaining phases
     if (type.toLowerCase() === 'git-manager') {
       context += `
 ## Phase Reporting (REQUIRED)
@@ -94,10 +166,8 @@ This helps the workflow decide if more implementation is needed.
 `;
     }
 
-    // Get session state
     const state = getState(sessionId);
 
-    // ─── Message Bus: Subscribe and inject messages ───
     try {
       const { messages, consumed } = subscribe(type, {
         sessionId,

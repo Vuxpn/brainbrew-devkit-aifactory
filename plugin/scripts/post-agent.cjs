@@ -436,6 +436,27 @@ function main() {
         }
       }
     }
+    const hasActiveChain = config.flow && Object.keys(config.flow).length > 0;
+    const agentInFlow = hasActiveChain && config.flow[type.toLowerCase()];
+    if (!agentInFlow) {
+      const secs2 = (ms / 1e3).toFixed(1);
+      const kTok2 = (tokens / 1e3).toFixed(1);
+      const preview2 = text.length > 200 ? text.substring(0, 200) + "..." : text;
+      const noti2 = `Agent ${type} completed | ${secs2}s | ${kTok2}k tokens | ${tools} tools
+
+${preview2}`;
+      log(LOG_FILE, `
+[${(/* @__PURE__ */ new Date()).toISOString()}] ${type}:${id} ${secs2}s ${kTok2}k \u2192 NO CHAIN
+`);
+      console.log(JSON.stringify({
+        continue: true,
+        hookSpecificOutput: {
+          hookEventName: "PostToolUse",
+          additionalContext: noti2
+        }
+      }));
+      process.exit(0);
+    }
     const isBackgrounded = tokens === 0 && ms === 0 && text.length === 0;
     if (isBackgrounded) {
       const dir = (0, import_path6.dirname)(LOG_FILE);

@@ -423,6 +423,25 @@ function main(): void {
       }
     }
 
+    const hasActiveChain = config.flow && Object.keys(config.flow).length > 0;
+    const agentInFlow = hasActiveChain && config.flow![type.toLowerCase()];
+
+    if (!agentInFlow) {
+      const secs = (ms / 1000).toFixed(1);
+      const kTok = (tokens / 1000).toFixed(1);
+      const preview = text.length > 200 ? text.substring(0, 200) + '...' : text;
+      const noti = `Agent ${type} completed | ${secs}s | ${kTok}k tokens | ${tools} tools\n\n${preview}`;
+      log(LOG_FILE, `\n[${new Date().toISOString()}] ${type}:${id} ${secs}s ${kTok}k → NO CHAIN\n`);
+      console.log(JSON.stringify({
+        continue: true,
+        hookSpecificOutput: {
+          hookEventName: 'PostToolUse',
+          additionalContext: noti,
+        },
+      }));
+      process.exit(0);
+    }
+
     // Detect backgrounded agents
     const isBackgrounded = tokens === 0 && ms === 0 && text.length === 0;
     if (isBackgrounded) {

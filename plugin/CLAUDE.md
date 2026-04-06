@@ -1,3 +1,17 @@
+# Hook System
+
+## 2-Layer Architecture
+
+Hooks run through `runner.cjs` in order:
+
+| Layer | Source | When |
+|-------|--------|------|
+| 1. User hooks | `.claude/hooks.yaml` | If file exists |
+| 2. Chain hooks | Active chain's `hooks:` section | Only when active chain file exists |
+
+User hooks: create `.claude/hooks.yaml` to customize any lifecycle event.
+Chain hooks: fire when an active chain file (`.claude/chains/{name}.yaml`) exists and has a `hooks:` section. Chain routing (MANDATORY NEXT STEP) only triggers when the agent type is defined in the chain's `flow:` section.
+
 # Agent Chain Protocol (MANDATORY)
 
 ## Hook-Driven Chaining

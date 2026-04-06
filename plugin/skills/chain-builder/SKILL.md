@@ -260,19 +260,75 @@ flow:
 5. Switch chains: `mcp__brainbrew__chain_switch(chain: "name")`
 6. Restart Claude Code session
 
-### Custom Hook Scripts
+### Hook System (3 Layers)
 
-Add your own hooks alongside built-in ones:
+Hooks run in order through 3 layers:
+
+| Layer | Source | When |
+|-------|--------|------|
+| 1. Built-in | Hardcoded in `runner.cjs` | Always (empty by default) |
+| 2. User hooks | `.claude/hooks.yaml` | If file exists |
+| 3. Chain hooks | `.claude/chains/{name}.yaml` → `hooks:` section | Only when chain is active |
+
+**User hooks** — create `.claude/hooks.yaml` to add hooks at any lifecycle stage:
+
+```yaml
+# Safety guards
+PreToolUse:
+  - plugin:safety-guard.cjs
+  - ./my-linter.js
+
+# Session lifecycle
+SessionStart:
+  - plugin:session-start.cjs
+  - ./setup-env.js
+SessionEnd:
+  - plugin:session-end.cjs
+
+# Agent lifecycle
+PostToolUse:
+  - ./my-logger.js
+SubagentStart:
+  - ./inject-context.js
+SubagentStop:
+  - ./my-validator.js
+
+# Other events
+UserPromptSubmit:
+  - ./my-prompt-filter.js
+Stop:
+  - ./cleanup.js
+Notification:
+  - ./my-notifier.js
+```
+
+Scripts go in `.claude/hooks/`. Each receives stdin JSON from Claude Code.
+
+Return `{"decision": "block", "reason": "..."}` to block, or exit 0 to pass through.
+
+**Available lifecycle events:** `PreToolUse`, `PostToolUse`, `SubagentStart`, `SubagentStop`, `SessionStart`, `SessionEnd`, `UserPromptSubmit`, `Stop`, `Notification`
+
+**Built-in scripts** (shipped with plugin, opt-in via `plugin:` prefix):
+
+| Script | Purpose |
+|--------|---------|
+| `plugin:safety-guard.cjs` | Block dangerous commands (rm -rf, git push --force, DROP TABLE, etc.) |
+| `plugin:session-start.cjs` | Session initialization and context setup |
+| `plugin:session-end.cjs` | Session cleanup |
+
+**Chain hooks** — defined inside chain files (`.claude/chains/{name}.yaml`), only run when that chain is active:
 
 ```yaml
 hooks:
   PostToolUse:
     - plugin:post-agent.cjs
-    - ./my-validator.js
   SubagentStart:
     - plugin:subagent-start.cjs
-    - ./inject-context.js
+  SubagentStop:
+    - plugin:subagent-stop.cjs
 ```
+
+### Script Path Resolution
 
 | Prefix | Resolves to |
 |--------|-------------|

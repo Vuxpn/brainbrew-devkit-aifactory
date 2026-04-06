@@ -38,7 +38,52 @@ function readActiveChainContent(cwd) {
 // src/hooks/runner.ts
 var PLUGIN_ROOT = process.env.CLAUDE_PLUGIN_ROOT || (0, import_path2.dirname)((0, import_path2.dirname)(__filename));
 var PLUGIN_SCRIPTS = (0, import_path2.join)(PLUGIN_ROOT, "scripts");
-function parseYamlConfig(content) {
+function parseSimpleYaml(content) {
+  const result = {};
+  let currentKey = "";
+  for (const line of content.split("\n")) {
+    if (line.startsWith("#") || !line.trim()) continue;
+    const keyMatch = line.match(/^(\S+):\s*$/);
+    if (keyMatch) {
+      currentKey = keyMatch[1];
+      result[currentKey] = [];
+      continue;
+    }
+    const itemMatch = line.match(/^\s+-\s+(.+)/);
+    if (itemMatch && currentKey) {
+      result[currentKey].push(itemMatch[1].trim());
+    }
+  }
+  return result;
+}
+function resolveScriptPath(script, cwd) {
+  if (script.startsWith("plugin:")) {
+    return (0, import_path2.join)(PLUGIN_SCRIPTS, script.replace("plugin:", ""));
+  }
+  if (script.startsWith("./") || script.startsWith("../")) {
+    const resolved = (0, import_path2.resolve)((0, import_path2.join)(cwd, ".claude", "hooks", script));
+    const base = (0, import_path2.resolve)((0, import_path2.join)(cwd, ".claude"));
+    if (!resolved.startsWith(base)) return null;
+    return resolved;
+  }
+  if (script.startsWith("/")) {
+    return script;
+  }
+  return (0, import_path2.join)(PLUGIN_SCRIPTS, script);
+}
+function getUserHooks(event, cwd) {
+  const configPath = (0, import_path2.join)(cwd, ".claude", "hooks.yaml");
+  if (!(0, import_fs2.existsSync)(configPath)) return [];
+  try {
+    const content = (0, import_fs2.readFileSync)(configPath, "utf-8");
+    const config = parseSimpleYaml(content);
+    const scripts = config[event] || [];
+    return scripts.map((s) => resolveScriptPath(s, cwd)).filter((p) => p !== null);
+  } catch {
+    return [];
+  }
+}
+function parseChainHooksConfig(content) {
   const config = { hooks: {} };
   let currentEvent = "";
   for (const line of content.split("\n")) {
@@ -55,33 +100,15 @@ function parseYamlConfig(content) {
   }
   return config;
 }
-function resolveScriptPath(script, cwd) {
-  if (script.startsWith("plugin:")) {
-    return (0, import_path2.join)(PLUGIN_SCRIPTS, script.replace("plugin:", ""));
-  }
-  if (script.startsWith("./") || script.startsWith("../")) {
-    return (0, import_path2.join)(cwd, ".claude", "hooks", script.replace(/^\.\//, ""));
-  }
-  if (script.startsWith("/")) {
-    return script;
-  }
-  return (0, import_path2.join)(PLUGIN_SCRIPTS, script);
-}
-var DEFAULT_PLUGIN_HOOKS = {
-  SessionStart: ["session-start.cjs"],
-  SessionEnd: ["session-end.cjs"]
-};
-function loadProjectHooks(event, cwd) {
-  const hooks = [];
-  const defaults = DEFAULT_PLUGIN_HOOKS[event] || [];
-  hooks.push(...defaults.map((h) => (0, import_path2.join)(PLUGIN_SCRIPTS, h)));
+function getChainHooks(event, cwd) {
   const chainContent = readActiveChainContent(cwd);
-  if (chainContent) {
-    const config = parseYamlConfig(chainContent);
-    const projectHooks = (config.hooks[event] || []).map((h) => resolveScriptPath(h, cwd));
-    hooks.push(...projectHooks);
+  if (!chainContent) return [];
+  try {
+    const config = parseChainHooksConfig(chainContent);
+    return (config.hooks[event] || []).map((s) => resolveScriptPath(s, cwd)).filter((p) => p !== null);
+  } catch {
+    return [];
   }
-  return hooks;
 }
 function runHook(hookPath, stdin) {
   if (!(0, import_fs2.existsSync)(hookPath)) {
@@ -135,10 +162,11 @@ function main() {
     if (payload.cwd) cwd = payload.cwd;
   } catch {
   }
-  const hooks = loadProjectHooks(eventArg, cwd);
-  if (hooks.length === 0) {
-    process.exit(0);
-  }
+  const hooks = [
+    ...getUserHooks(eventArg, cwd),
+    ...getChainHooks(eventArg, cwd)
+  ];
+  if (hooks.length === 0) process.exit(0);
   for (const hookPath of hooks) {
     const result = runHook(hookPath, stdin);
     if (result.block) {

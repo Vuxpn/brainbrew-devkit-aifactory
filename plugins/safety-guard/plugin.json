@@ -1,0 +1,8 @@
+{
+  "name": "safety-guard",
+  "description": "Block dangerous commands (rm -rf, git push --force, DROP TABLE, etc.)",
+  "version": "1.0.0",
+  "author": "brainbrewlabs",
+  "runtime": "node",
+  "keywords": ["security", "safety", "guard", "hooks", "PreToolUse"]
+}

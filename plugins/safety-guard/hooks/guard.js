@@ -19,6 +19,19 @@ const DANGEROUS_PATTERNS = [
   { pattern: />\s*\/dev\/sd[a-z]/i, label: 'write to block device' },
   { pattern: /\bcurl\b.*\|\s*(bash|sh|zsh)\b/i, label: 'curl pipe to shell' },
   { pattern: /\bwget\b.*\|\s*(bash|sh|zsh)\b/i, label: 'wget pipe to shell' },
+  { pattern: /\bkubectl\s+delete\s+(namespace|ns)\b/i, label: 'kubectl delete namespace' },
+  { pattern: /\bkubectl\s+delete\s+.*--all\b/i, label: 'kubectl delete --all' },
+  { pattern: /\bkubectl\s+delete\s+.*-A\b/i, label: 'kubectl delete across all namespaces' },
+  { pattern: /\bkubectl\s+drain\b/i, label: 'kubectl drain node' },
+  { pattern: /\bkubectl\s+cordon\b/i, label: 'kubectl cordon node' },
+  { pattern: /\bkubectl\s+taint\b/i, label: 'kubectl taint node' },
+  { pattern: /\bkubectl\s+replace\s+--force\b/i, label: 'kubectl replace --force' },
+  { pattern: /\bkubectl\s+exec\s+.*--\s*(rm|dd|mkfs|shutdown|reboot)\b/i, label: 'kubectl exec dangerous command' },
+  { pattern: /\bkubectl\s+apply\s+.*-f\s+https?:/i, label: 'kubectl apply from remote URL' },
+  { pattern: /\bkubectl\s+scale\s+.*--replicas=0\b/i, label: 'kubectl scale to 0 replicas' },
+  { pattern: /\bkubectl\s+edit\s+(clusterrole|clusterrolebinding)\b/i, label: 'kubectl edit cluster RBAC' },
+  { pattern: /\bhelm\s+(uninstall|delete)\b/i, label: 'helm uninstall release' },
+  { pattern: /\bhelm\s+rollback\b/i, label: 'helm rollback' },
 ];
 
 let stdin = '';

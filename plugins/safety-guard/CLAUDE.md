@@ -57,6 +57,8 @@ Add hooks to `~/.claude/settings.json` (or project `.claude/settings.json`):
 | SQL destructive | `DROP TABLE/DATABASE/SCHEMA`, `TRUNCATE TABLE` |
 | System dangerous | `chmod/chown -R /`, `kill -9`, `mkfs`, `dd to device` |
 | Remote execution | `curl \| bash`, `wget \| sh` |
+| Kubernetes | `kubectl delete namespace`, `kubectl delete --all`, `kubectl drain/cordon/taint`, `kubectl replace --force`, `kubectl exec rm/dd/mkfs`, `kubectl apply -f http://`, `kubectl scale --replicas=0`, `kubectl edit clusterrole` |
+| Helm | `helm uninstall/delete`, `helm rollback` |
 
 ## Customize
 

@@ -8,6 +8,8 @@ tools:
   - Read
   - Grep
   - Glob
+skills:
+  - security-scan
 ---
 
 # Security Scan Agent

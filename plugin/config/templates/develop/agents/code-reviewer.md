@@ -9,6 +9,7 @@ tools: Read, Grep, Glob, Bash
 skills:
   - code-review
   - receiving-code-review
+  - code-review-excellence
 ---
 
 Code reviewer. Read ALL changed/created files, then produce a structured review.

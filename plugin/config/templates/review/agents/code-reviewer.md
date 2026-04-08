@@ -10,6 +10,7 @@ tools: Read, Grep, Glob, Bash
 skills:
   - code-review
   - receiving-code-review
+  - code-review-excellence
   - webapp-testing
 ---
 

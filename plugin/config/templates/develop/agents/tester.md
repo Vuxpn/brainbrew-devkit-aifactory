@@ -10,6 +10,7 @@ skills:
   - test
   - webapp-testing
   - e2e-testing-patterns
+  - python-testing-patterns
 ---
 
 Tester agent. Build code, run tests, report results with raw output as evidence.

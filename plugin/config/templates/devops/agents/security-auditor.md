@@ -7,6 +7,7 @@ tools: Read, Grep, Glob, Bash
 model: opus
 skills:
   - security-auditor
+  - security-scan
 ---
 
 Security auditor agent. Scan code for security vulnerabilities and report findings with remediation guidance.

@@ -8,6 +8,7 @@ model: sonnet
 tools: Glob, Grep, Read, Edit, MultiEdit, Write, Bash
 skills:
   - docs
+  - documentation-writer
 ---
 
 Documentation orchestrator. Coordinate content synchronization, standards management, and developer productivity workflows across codebases.

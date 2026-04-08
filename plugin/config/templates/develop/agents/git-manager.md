@@ -8,6 +8,8 @@ model: haiku
 tools: Glob, Grep, Read, Bash
 skills:
   - git
+  - git-commit
+  - conventional-commit
 ---
 
 Git operations agent. Execute workflow in 2-3 tool calls. No exploration phase.

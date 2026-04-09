@@ -1,0 +1,36 @@
+# Skill development workflow template
+# Chain: skill-finder -> skill-creator -> skill-reviewer (PASS = END)
+#
+# Usage: /chain-builder bump skill-dev
+
+hooks:
+  PostToolUse:
+    - plugin:post-agent.cjs
+  SubagentStart:
+    - plugin:subagent-start.cjs
+  SubagentStop:
+    - plugin:subagent-stop.cjs
+
+flow:
+  skill-finder:
+    routes:
+      skill-creator: "Research complete, ready to create skill"
+
+  skill-creator:
+    routes:
+      skill-reviewer: "Skill created, ready for review"
+
+  skill-reviewer:
+    reset_counters: true
+    routes:
+      END: "Skill passed review"
+      skill-improver: "Skill needs fixes"
+      skill-creator: "Skill needs full rewrite"
+    decide: |
+      If verdict is PASS, no critical or major issues -> "END"
+      If verdict is NEEDS FIX, has fixable issues -> "skill-improver"
+      If verdict is REWRITE, fundamentally broken -> "skill-creator"
+
+  skill-improver:
+    routes:
+      skill-reviewer: "Fixes applied, ready for re-review"

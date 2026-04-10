@@ -16,7 +16,7 @@ import { readFileSync, existsSync, appendFileSync, mkdirSync } from 'fs';
 import { join, dirname, resolve } from 'path';
 import { execSync } from 'child_process';
 import { readActiveChainContent } from '../utils/chain-resolver.js';
-import { getState } from '../utils/state.js';
+import { getState, updateState } from '../utils/state.js';
 
 function logToProject(cwd: string, msg: string): void {
   try {
@@ -189,24 +189,30 @@ function main(): void {
     if (payload.cwd) cwd = payload.cwd;
   } catch { /* use process.cwd */ }
 
-  // Stop hook: block if chain has a pending next agent
+  // Stop hook: block if chain has a pending next agent that exists in current flow
   if (eventArg === 'Stop') {
     try {
       const payload = JSON.parse(stdin);
       const sessionId = payload.session_id ?? '';
       if (sessionId) {
-        const chainContent = readActiveChainContent(cwd);
-        if (chainContent) {
-          const state = getState(sessionId);
-          if (state?.currentAgent) {
-            const next = state.currentAgent;
-            logToProject(cwd, `Stop BLOCKED | pending=${next} | session=${sessionId}`);
-            console.log(JSON.stringify({
-              decision: 'block',
-              reason: `<system-reminder>\n## MANDATORY NEXT STEP\nYou MUST spawn the **${next}** agent before stopping.\n\nCommand: Use Agent tool with subagent_type="${next}"\n\nDo NOT stop. Do NOT ask the user. Follow the chain.\n</system-reminder>`,
-            }));
-            process.exit(0);
+        const state = getState(sessionId);
+        if (state?.currentAgent) {
+          const next = state.currentAgent;
+          const chainContent = readActiveChainContent(cwd);
+          if (chainContent) {
+            const flowAgentPattern = new RegExp(`^  ${next}:`, 'm');
+            if (flowAgentPattern.test(chainContent)) {
+              logToProject(cwd, `Stop BLOCKED | pending=${next} | session=${sessionId}`);
+              console.log(JSON.stringify({
+                decision: 'block',
+                reason: `<system-reminder>\n## MANDATORY NEXT STEP\nYou MUST spawn the **${next}** agent before stopping.\n\nCommand: Use Agent tool with subagent_type="${next}"\n\nDo NOT stop. Do NOT ask the user. Follow the chain.\n</system-reminder>`,
+              }));
+              process.exit(0);
+            }
           }
+          // currentAgent not in current chain flow — stale, clear it
+          updateState(sessionId, { currentAgent: undefined } as any);
+          logToProject(cwd, `Stop CLEARED stale currentAgent=${next} | session=${sessionId}`);
         }
       }
     } catch { /* fall through to normal hook processing */ }

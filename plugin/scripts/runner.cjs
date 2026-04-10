@@ -73,6 +73,13 @@ function getState(sessionId) {
     return null;
   }
 }
+function updateState(sessionId, updates) {
+  if (!sessionId) return;
+  if (!(0, import_fs2.existsSync)(STATE_DIR)) (0, import_fs2.mkdirSync)(STATE_DIR, { recursive: true });
+  const current = getState(sessionId) || { previousAgents: [] };
+  const merged = { ...current, ...updates };
+  (0, import_fs2.writeFileSync)(statePath(sessionId), JSON.stringify(merged, null, 2));
+}
 
 // src/hooks/runner.ts
 function logToProject(cwd, msg) {
@@ -216,15 +223,17 @@ function main() {
       const payload = JSON.parse(stdin);
       const sessionId = payload.session_id ?? "";
       if (sessionId) {
-        const chainContent = readActiveChainContent(cwd);
-        if (chainContent) {
-          const state = getState(sessionId);
-          if (state?.currentAgent) {
-            const next = state.currentAgent;
-            logToProject(cwd, `Stop BLOCKED | pending=${next} | session=${sessionId}`);
-            console.log(JSON.stringify({
-              decision: "block",
-              reason: `<system-reminder>
+        const state = getState(sessionId);
+        if (state?.currentAgent) {
+          const next = state.currentAgent;
+          const chainContent = readActiveChainContent(cwd);
+          if (chainContent) {
+            const flowAgentPattern = new RegExp(`^  ${next}:`, "m");
+            if (flowAgentPattern.test(chainContent)) {
+              logToProject(cwd, `Stop BLOCKED | pending=${next} | session=${sessionId}`);
+              console.log(JSON.stringify({
+                decision: "block",
+                reason: `<system-reminder>
 ## MANDATORY NEXT STEP
 You MUST spawn the **${next}** agent before stopping.
 
@@ -232,9 +241,12 @@ Command: Use Agent tool with subagent_type="${next}"
 
 Do NOT stop. Do NOT ask the user. Follow the chain.
 </system-reminder>`
-            }));
-            process.exit(0);
+              }));
+              process.exit(0);
+            }
           }
+          updateState(sessionId, { currentAgent: void 0 });
+          logToProject(cwd, `Stop CLEARED stale currentAgent=${next} | session=${sessionId}`);
         }
       }
     } catch {

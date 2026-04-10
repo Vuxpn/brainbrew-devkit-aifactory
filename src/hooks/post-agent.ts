@@ -395,6 +395,88 @@ type ChainState = {
   phaseTracking?: Record<string, unknown>;
 };
 
+interface AgentStats {
+  filesRead: string[];
+  filesEdited: string[];
+  filesCreated: string[];
+  bashCommands: string[];
+  toolBreakdown: Record<string, number>;
+}
+
+function extractStats(text: string, cwd: string): AgentStats {
+  const stats: AgentStats = {
+    filesRead: [],
+    filesEdited: [],
+    filesCreated: [],
+    bashCommands: [],
+    toolBreakdown: {},
+  };
+
+  const cwdPrefix = cwd.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const filePathPattern = new RegExp(`(?:${cwdPrefix})?(/[\\w./-]+\\.[a-zA-Z]{1,10})`, 'g');
+  const allPaths = new Set<string>();
+  let match: RegExpExecArray | null;
+  while ((match = filePathPattern.exec(text)) !== null) {
+    const p = match[1];
+    if (!p.includes('node_modules') && !p.includes('.git/')) allPaths.add(p);
+  }
+
+  const readPatterns = /(?:Read|read|reading|Glob|Grep).*?(\/[\w./-]+\.\w+)/gi;
+  while ((match = readPatterns.exec(text)) !== null) stats.filesRead.push(match[1]);
+
+  const editPatterns = /(?:Edit|Write|MultiEdit|created|modified|updated).*?(\/[\w./-]+\.\w+)/gi;
+  while ((match = editPatterns.exec(text)) !== null) {
+    if (text.toLowerCase().includes('creat') && text.includes(match[1])) {
+      stats.filesCreated.push(match[1]);
+    } else {
+      stats.filesEdited.push(match[1]);
+    }
+  }
+
+  const bashPattern = /(?:```(?:bash|sh)\n|Command: `|Bash\()([^\n`]+)/g;
+  while ((match = bashPattern.exec(text)) !== null) {
+    const cmd = match[1].trim();
+    if (cmd.length > 3 && cmd.length < 200) stats.bashCommands.push(cmd);
+  }
+
+  const toolNames = ['Read', 'Edit', 'Write', 'MultiEdit', 'Grep', 'Glob', 'Bash', 'Agent', 'WebSearch', 'WebFetch'];
+  for (const tool of toolNames) {
+    const count = (text.match(new RegExp(`\\b${tool}\\b`, 'g')) || []).length;
+    if (count > 0) stats.toolBreakdown[tool] = count;
+  }
+
+  stats.filesRead = [...new Set(stats.filesRead)];
+  stats.filesEdited = [...new Set(stats.filesEdited)];
+  stats.filesCreated = [...new Set(stats.filesCreated)];
+
+  return stats;
+}
+
+function formatStatsYaml(stats: AgentStats): string {
+  let yaml = '';
+  if (Object.keys(stats.toolBreakdown).length > 0) {
+    yaml += 'tool_mentions:\n';
+    for (const [tool, count] of Object.entries(stats.toolBreakdown)) {
+      yaml += `  ${tool}: ${count}\n`;
+    }
+  }
+  if (stats.filesEdited.length > 0) {
+    yaml += 'files_modified:\n';
+    for (const f of stats.filesEdited.slice(0, 20)) yaml += `  - "${f}"\n`;
+  }
+  if (stats.filesCreated.length > 0) {
+    yaml += 'files_created:\n';
+    for (const f of stats.filesCreated.slice(0, 20)) yaml += `  - "${f}"\n`;
+  }
+  if (stats.filesRead.length > 0) {
+    yaml += `files_read_count: ${stats.filesRead.length}\n`;
+  }
+  if (stats.bashCommands.length > 0) {
+    yaml += `bash_commands_count: ${stats.bashCommands.length}\n`;
+  }
+  return yaml;
+}
+
 function main(): void {
   try {
     const stdin = readFileSync(0, 'utf-8').trim();
@@ -454,7 +536,9 @@ function main(): void {
           if (!existsSync(outputDir)) mkdirSync(outputDir, { recursive: true });
           const ts = new Date().toISOString().replace(/[:.]/g, '-').substring(0, 19);
           const filename = `${ts}.md`;
-          const header = `---\nagent: ${type}\nid: ${id}\ntokens: ${tokens}\nduration_ms: ${ms}\ntools: ${tools}\ntimestamp: ${new Date().toISOString()}\nsession: ${sessionId}\ndescription: "${description.replace(/"/g, '\\"')}"\n---\n\n`;
+          const stats = extractStats(text, cwd);
+          const statsYaml = formatStatsYaml(stats);
+          const header = `---\nagent: ${type}\nid: ${id}\ntokens: ${tokens}\nduration_ms: ${ms}\ntools_used: ${tools}\ntimestamp: ${new Date().toISOString()}\nsession: ${sessionId}\ndescription: "${description.replace(/"/g, '\\"')}"\n${statsYaml}---\n\n`;
           const promptSection = prompt ? `## Prompt\n\n${prompt}\n\n## Output\n\n` : '';
           writeFileSync(join(outputDir, filename), header + promptSection + text);
           log(LOG_FILE, `[SAVE] ${type} → ${type.toLowerCase()}/${filename} (${text.length} chars)`);
@@ -619,7 +703,9 @@ DO NOT ask user. DO NOT skip. DO NOT background agents.
         if (!existsSync(outputDir)) mkdirSync(outputDir, { recursive: true });
         const ts = new Date().toISOString().replace(/[:.]/g, '-').substring(0, 19);
         const filename = `${ts}.md`;
-        const header = `---\nagent: ${type}\nid: ${id}\ntokens: ${tokens}\nduration_ms: ${ms}\ntools: ${tools}\ntimestamp: ${new Date().toISOString()}\nsession: ${sessionId}\nnext: ${next ?? 'END'}\ndescription: "${description.replace(/"/g, '\\"')}"\n---\n\n`;
+        const stats = extractStats(text, cwd);
+        const statsYaml = formatStatsYaml(stats);
+        const header = `---\nagent: ${type}\nid: ${id}\ntokens: ${tokens}\nduration_ms: ${ms}\ntools_used: ${tools}\ntimestamp: ${new Date().toISOString()}\nsession: ${sessionId}\nnext: ${next ?? 'END'}\ndescription: "${description.replace(/"/g, '\\"')}"\n${statsYaml}---\n\n`;
         const promptSection = prompt ? `## Prompt\n\n${prompt}\n\n## Output\n\n` : '';
         writeFileSync(join(outputDir, filename), header + promptSection + text);
         log(LOG_FILE, `[SAVE] ${type} → ${type.toLowerCase()}/${filename} (${text.length} chars)`);

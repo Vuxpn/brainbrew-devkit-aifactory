@@ -421,6 +421,76 @@ function checkPhaseProgress(sessionId) {
   updateState(sessionId, { phaseTracking: void 0 });
   return { hasMore: false, allComplete: true };
 }
+function extractStats(text, cwd) {
+  const stats = {
+    filesRead: [],
+    filesEdited: [],
+    filesCreated: [],
+    bashCommands: [],
+    toolBreakdown: {}
+  };
+  const cwdPrefix = cwd.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const filePathPattern = new RegExp(`(?:${cwdPrefix})?(/[\\w./-]+\\.[a-zA-Z]{1,10})`, "g");
+  const allPaths = /* @__PURE__ */ new Set();
+  let match;
+  while ((match = filePathPattern.exec(text)) !== null) {
+    const p = match[1];
+    if (!p.includes("node_modules") && !p.includes(".git/")) allPaths.add(p);
+  }
+  const readPatterns = /(?:Read|read|reading|Glob|Grep).*?(\/[\w./-]+\.\w+)/gi;
+  while ((match = readPatterns.exec(text)) !== null) stats.filesRead.push(match[1]);
+  const editPatterns = /(?:Edit|Write|MultiEdit|created|modified|updated).*?(\/[\w./-]+\.\w+)/gi;
+  while ((match = editPatterns.exec(text)) !== null) {
+    if (text.toLowerCase().includes("creat") && text.includes(match[1])) {
+      stats.filesCreated.push(match[1]);
+    } else {
+      stats.filesEdited.push(match[1]);
+    }
+  }
+  const bashPattern = /(?:```(?:bash|sh)\n|Command: `|Bash\()([^\n`]+)/g;
+  while ((match = bashPattern.exec(text)) !== null) {
+    const cmd = match[1].trim();
+    if (cmd.length > 3 && cmd.length < 200) stats.bashCommands.push(cmd);
+  }
+  const toolNames = ["Read", "Edit", "Write", "MultiEdit", "Grep", "Glob", "Bash", "Agent", "WebSearch", "WebFetch"];
+  for (const tool of toolNames) {
+    const count = (text.match(new RegExp(`\\b${tool}\\b`, "g")) || []).length;
+    if (count > 0) stats.toolBreakdown[tool] = count;
+  }
+  stats.filesRead = [...new Set(stats.filesRead)];
+  stats.filesEdited = [...new Set(stats.filesEdited)];
+  stats.filesCreated = [...new Set(stats.filesCreated)];
+  return stats;
+}
+function formatStatsYaml(stats) {
+  let yaml = "";
+  if (Object.keys(stats.toolBreakdown).length > 0) {
+    yaml += "tool_mentions:\n";
+    for (const [tool, count] of Object.entries(stats.toolBreakdown)) {
+      yaml += `  ${tool}: ${count}
+`;
+    }
+  }
+  if (stats.filesEdited.length > 0) {
+    yaml += "files_modified:\n";
+    for (const f of stats.filesEdited.slice(0, 20)) yaml += `  - "${f}"
+`;
+  }
+  if (stats.filesCreated.length > 0) {
+    yaml += "files_created:\n";
+    for (const f of stats.filesCreated.slice(0, 20)) yaml += `  - "${f}"
+`;
+  }
+  if (stats.filesRead.length > 0) {
+    yaml += `files_read_count: ${stats.filesRead.length}
+`;
+  }
+  if (stats.bashCommands.length > 0) {
+    yaml += `bash_commands_count: ${stats.bashCommands.length}
+`;
+  }
+  return yaml;
+}
 function main() {
   try {
     const stdin = (0, import_fs5.readFileSync)(0, "utf-8").trim();
@@ -465,16 +535,18 @@ ${preview2}`;
           if (!(0, import_fs5.existsSync)(outputDir)) (0, import_fs5.mkdirSync)(outputDir, { recursive: true });
           const ts = (/* @__PURE__ */ new Date()).toISOString().replace(/[:.]/g, "-").substring(0, 19);
           const filename = `${ts}.md`;
+          const stats = extractStats(text, cwd);
+          const statsYaml = formatStatsYaml(stats);
           const header = `---
 agent: ${type}
 id: ${id}
 tokens: ${tokens}
 duration_ms: ${ms}
-tools: ${tools}
+tools_used: ${tools}
 timestamp: ${(/* @__PURE__ */ new Date()).toISOString()}
 session: ${sessionId}
 description: "${description.replace(/"/g, '\\"')}"
----
+${statsYaml}---
 
 `;
           const promptSection = prompt ? `## Prompt
@@ -649,17 +721,19 @@ ${preview}`;
         if (!(0, import_fs5.existsSync)(outputDir)) (0, import_fs5.mkdirSync)(outputDir, { recursive: true });
         const ts = (/* @__PURE__ */ new Date()).toISOString().replace(/[:.]/g, "-").substring(0, 19);
         const filename = `${ts}.md`;
+        const stats = extractStats(text, cwd);
+        const statsYaml = formatStatsYaml(stats);
         const header = `---
 agent: ${type}
 id: ${id}
 tokens: ${tokens}
 duration_ms: ${ms}
-tools: ${tools}
+tools_used: ${tools}
 timestamp: ${(/* @__PURE__ */ new Date()).toISOString()}
 session: ${sessionId}
 next: ${next ?? "END"}
 description: "${description.replace(/"/g, '\\"')}"
----
+${statsYaml}---
 
 `;
         const promptSection = prompt ? `## Prompt

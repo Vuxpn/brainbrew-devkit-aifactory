@@ -18,6 +18,7 @@ interface ChainState {
     teammates: Array<{ name: string; agent: string; status: 'pending' | 'running' | 'complete' }>;
     startedAt: string;
   };
+  chainBlockCount?: number;
 }
 
 function statePath(sessionId: string): string {

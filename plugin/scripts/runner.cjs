@@ -218,10 +218,27 @@ function main() {
     if (payload.cwd) cwd = payload.cwd;
   } catch {
   }
-  if (eventArg === "Stop") {
+  if (eventArg === "UserPromptSubmit") {
     try {
       const payload = JSON.parse(stdin);
       const sessionId = payload.session_id ?? "";
+      const message = (payload.message ?? "").toLowerCase();
+      if (sessionId && (message.includes("skip chain") || message.includes("/skip-chain"))) {
+        const state = getState(sessionId);
+        if (state?.currentAgent) {
+          const skipped = state.currentAgent;
+          updateState(sessionId, { currentAgent: void 0, chainBlockCount: 0 });
+          logToProject(cwd, `SKIP chain step | skipped=${skipped} | session=${sessionId}`);
+        }
+      }
+    } catch {
+    }
+  }
+  if (eventArg === "PreToolUse" || eventArg === "Stop") {
+    try {
+      const payload = JSON.parse(stdin);
+      const sessionId = payload.session_id ?? "";
+      const toolName = payload.tool_name ?? "";
       if (sessionId) {
         const state = getState(sessionId);
         if (state?.currentAgent) {
@@ -230,23 +247,58 @@ function main() {
           if (chainContent) {
             const flowAgentPattern = new RegExp(`^  ${next}:`, "m");
             if (flowAgentPattern.test(chainContent)) {
-              logToProject(cwd, `Stop BLOCKED | pending=${next} | session=${sessionId}`);
-              console.log(JSON.stringify({
-                decision: "block",
-                reason: `<system-reminder>
+              if (eventArg === "PreToolUse") {
+                if (toolName === "Agent") {
+                } else {
+                  const blockCount = (state.chainBlockCount ?? 0) + 1;
+                  updateState(sessionId, { chainBlockCount: blockCount });
+                  logToProject(cwd, `PreToolUse BLOCKED ${toolName} | pending=${next} | count=${blockCount} | session=${sessionId}`);
+                  let reason = `<system-reminder>
+Chain step pending. Do NOT use ${toolName} \u2014 spawn the **${next}** agent first.
+
+Command: Use Agent tool with subagent_type="${next}"`;
+                  if (blockCount >= 3) {
+                    reason += `
+
+---
+**Bypass:** If this is a false positive (e.g., the work was already done manually), tell the user:
+"The chain hook is blocking because it expects me to spawn ${next}. Type \`/skip-chain\` or say 'skip chain step' to clear it."
+
+Or the user can clear it manually: \`rm ~/.claude/tmp/chain-state/${sessionId}.json\``;
+                  }
+                  reason += "\n</system-reminder>";
+                  console.log(JSON.stringify({ decision: "block", reason }));
+                  process.exit(0);
+                }
+              }
+              if (eventArg === "Stop") {
+                const blockCount = (state.chainBlockCount ?? 0) + 1;
+                updateState(sessionId, { chainBlockCount: blockCount });
+                logToProject(cwd, `Stop BLOCKED | pending=${next} | count=${blockCount} | session=${sessionId}`);
+                let reason = `<system-reminder>
 ## MANDATORY NEXT STEP
 You MUST spawn the **${next}** agent before stopping.
 
 Command: Use Agent tool with subagent_type="${next}"
 
-Do NOT stop. Do NOT ask the user. Follow the chain.
-</system-reminder>`
-              }));
-              process.exit(0);
+Do NOT stop. Do NOT ask the user. Follow the chain.`;
+                if (blockCount >= 3) {
+                  reason += `
+
+---
+**This hook has blocked ${blockCount} times.** If spawning ${next} is genuinely unnecessary (work was done manually), tell the user:
+"The chain expects me to spawn ${next} but the work is already done. Say 'skip chain step' to clear this."`;
+                }
+                reason += "\n</system-reminder>";
+                console.log(JSON.stringify({ decision: "block", reason }));
+                process.exit(0);
+              }
             }
           }
-          updateState(sessionId, { currentAgent: void 0 });
-          logToProject(cwd, `Stop CLEARED stale currentAgent=${next} | session=${sessionId}`);
+          if (eventArg === "Stop") {
+            updateState(sessionId, { currentAgent: void 0, chainBlockCount: 0 });
+            logToProject(cwd, `Stop CLEARED stale currentAgent=${next} | session=${sessionId}`);
+          }
         }
       }
     } catch {

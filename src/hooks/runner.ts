@@ -256,8 +256,7 @@ function main(): void {
                 let reason: string;
                 if (blockCount >= 3) {
                   updateState(sessionId, { currentAgent: undefined, chainBlockCount: 0 } as any);
-                  reason = `<system-reminder>\nHook blocked ${blockCount} times — releasing. Just spawn **${next}** to satisfy the chain. If work is already done, the agent will finish quickly.\n\nCommand: Use Agent tool with subagent_type="${next}"\n\nOr if the user said to skip: proceed normally.\n</system-reminder>`;
-                  console.log(JSON.stringify({ continue: true, hookSpecificOutput: { hookEventName: 'Stop', additionalContext: reason } }));
+                  logToProject(cwd, `Stop RELEASED after ${blockCount} blocks | pending=${next} | session=${sessionId}`);
                   process.exit(0);
                 } else {
                   reason = `<system-reminder>\n## MANDATORY NEXT STEP\nYou MUST spawn the **${next}** agent before stopping.\n\nCommand: Use Agent tool with subagent_type="${next}"\n\nDo NOT stop. Do NOT ask the user. Follow the chain.\n</system-reminder>`;

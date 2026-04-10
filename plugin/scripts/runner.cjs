@@ -283,14 +283,7 @@ Command: Use Agent tool with subagent_type="${next}"
                 let reason;
                 if (blockCount >= 3) {
                   updateState(sessionId, { currentAgent: void 0, chainBlockCount: 0 });
-                  reason = `<system-reminder>
-Hook blocked ${blockCount} times \u2014 releasing. Just spawn **${next}** to satisfy the chain. If work is already done, the agent will finish quickly.
-
-Command: Use Agent tool with subagent_type="${next}"
-
-Or if the user said to skip: proceed normally.
-</system-reminder>`;
-                  console.log(JSON.stringify({ continue: true, hookSpecificOutput: { hookEventName: "Stop", additionalContext: reason } }));
+                  logToProject(cwd, `Stop RELEASED after ${blockCount} blocks | pending=${next} | session=${sessionId}`);
                   process.exit(0);
                 } else {
                   reason = `<system-reminder>

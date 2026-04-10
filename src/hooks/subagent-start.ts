@@ -1,5 +1,5 @@
 import { readFileSync } from 'fs';
-import { getState } from '../utils/state.js';
+import { getState, updateState } from '../utils/state.js';
 import { log, logEvent } from '../utils/logger.js';
 import { CHAIN_CONFIG_FILE, VERIFICATION_RULES_FILE, TMP_DIR } from '../utils/paths.js';
 import { subscribe, formatForContext } from '../memory/bus.js';
@@ -55,6 +55,13 @@ function main(): void {
 
     log(LOG_FILE, `START ${type}:${id}`);
     logEvent({ event: 'start', agent: type, id, session: sessionId });
+
+    if (sessionId) {
+      const currentState = getState(sessionId);
+      if (currentState?.currentAgent && currentState.currentAgent === type.toLowerCase()) {
+        updateState(sessionId, { currentAgent: undefined });
+      }
+    }
 
     const agentConfig = getAgentConfig(type);
     const chainNext = agentConfig.chainNext;

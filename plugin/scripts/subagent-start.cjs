@@ -41,6 +41,13 @@ function getState(sessionId) {
     return null;
   }
 }
+function updateState(sessionId, updates) {
+  if (!sessionId) return;
+  if (!(0, import_fs.existsSync)(STATE_DIR)) (0, import_fs.mkdirSync)(STATE_DIR, { recursive: true });
+  const current = getState(sessionId) || { previousAgents: [] };
+  const merged = { ...current, ...updates };
+  (0, import_fs.writeFileSync)(statePath(sessionId), JSON.stringify(merged, null, 2));
+}
 
 // src/utils/logger.ts
 var import_fs2 = require("fs");
@@ -194,6 +201,12 @@ function main() {
     const sessionId = p.session_id ?? "";
     log(LOG_FILE, `START ${type}:${id}`);
     logEvent({ event: "start", agent: type, id, session: sessionId });
+    if (sessionId) {
+      const currentState = getState(sessionId);
+      if (currentState?.currentAgent && currentState.currentAgent === type.toLowerCase()) {
+        updateState(sessionId, { currentAgent: void 0 });
+      }
+    }
     const agentConfig = getAgentConfig(type);
     const chainNext = agentConfig.chainNext;
     const instructions = agentConfig.instructions ?? "";

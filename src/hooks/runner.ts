@@ -12,10 +12,20 @@
  *   - "/absolute/path"  → as-is
  */
 
-import { readFileSync, existsSync } from 'fs';
+import { readFileSync, existsSync, appendFileSync, mkdirSync } from 'fs';
 import { join, dirname, resolve } from 'path';
 import { execSync } from 'child_process';
 import { readActiveChainContent } from '../utils/chain-resolver.js';
+import { getState } from '../utils/state.js';
+
+function logToProject(cwd: string, msg: string): void {
+  try {
+    const tmpDir = join(cwd, '.claude', 'tmp');
+    if (!existsSync(tmpDir)) mkdirSync(tmpDir, { recursive: true });
+    const logFile = join(tmpDir, 'runner.log');
+    appendFileSync(logFile, `[${new Date().toISOString()}] ${msg}\n`);
+  } catch { /* ignore log failures */ }
+}
 
 const PLUGIN_ROOT = process.env.CLAUDE_PLUGIN_ROOT || dirname(dirname(__filename));
 const PLUGIN_SCRIPTS = join(PLUGIN_ROOT, 'scripts');
@@ -179,10 +189,34 @@ function main(): void {
     if (payload.cwd) cwd = payload.cwd;
   } catch { /* use process.cwd */ }
 
-  const hooks = [
-    ...getUserHooks(eventArg, cwd),
-    ...getChainHooks(eventArg, cwd),
-  ];
+  // Stop hook: block if chain has a pending next agent
+  if (eventArg === 'Stop') {
+    try {
+      const payload = JSON.parse(stdin);
+      const sessionId = payload.session_id ?? '';
+      if (sessionId) {
+        const chainContent = readActiveChainContent(cwd);
+        if (chainContent) {
+          const state = getState(sessionId);
+          if (state?.currentAgent) {
+            const next = state.currentAgent;
+            logToProject(cwd, `Stop BLOCKED | pending=${next} | session=${sessionId}`);
+            console.log(JSON.stringify({
+              decision: 'block',
+              reason: `<system-reminder>\n## MANDATORY NEXT STEP\nYou MUST spawn the **${next}** agent before stopping.\n\nCommand: Use Agent tool with subagent_type="${next}"\n\nDo NOT stop. Do NOT ask the user. Follow the chain.\n</system-reminder>`,
+            }));
+            process.exit(0);
+          }
+        }
+      }
+    } catch { /* fall through to normal hook processing */ }
+  }
+
+  const userHooks = getUserHooks(eventArg, cwd);
+  const chainHooks = getChainHooks(eventArg, cwd);
+  const hooks = [...userHooks, ...chainHooks];
+
+  logToProject(cwd, `${eventArg} | cwd=${cwd} | userHooks=${userHooks.length} | chainHooks=${chainHooks.length} | total=${hooks.length}`);
 
   if (hooks.length === 0) process.exit(0);
 

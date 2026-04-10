@@ -2,8 +2,8 @@
 "use strict";
 
 // src/hooks/runner.ts
-var import_fs2 = require("fs");
-var import_path2 = require("path");
+var import_fs3 = require("fs");
+var import_path4 = require("path");
 var import_child_process = require("child_process");
 
 // src/utils/chain-resolver.ts
@@ -35,9 +35,58 @@ function readActiveChainContent(cwd) {
   return (0, import_fs.readFileSync)(resolved.configPath, "utf-8");
 }
 
+// src/utils/state.ts
+var import_fs2 = require("fs");
+var import_path3 = require("path");
+
+// src/utils/paths.ts
+var import_os = require("os");
+var import_path2 = require("path");
+var HOME = (0, import_os.homedir)();
+var CLAUDE_DIR = (0, import_path2.join)(HOME, ".claude");
+var CHAINS_DIR = (0, import_path2.join)(CLAUDE_DIR, "chains");
+var BACKUP_DIR = (0, import_path2.join)(CHAINS_DIR, ".backup");
+var AGENTS_DIR = (0, import_path2.join)(CLAUDE_DIR, "agents");
+var SKILLS_DIR = (0, import_path2.join)(CLAUDE_DIR, "skills");
+var HOOKS_DIR = (0, import_path2.join)(CLAUDE_DIR, "hooks", "chains");
+var CUSTOM_HOOKS_DIR = (0, import_path2.join)(HOOKS_DIR, "custom");
+var TMP_DIR = (0, import_path2.join)(CLAUDE_DIR, "tmp");
+var PROJECTS_DIR = (0, import_path2.join)(CLAUDE_DIR, "projects");
+var SETTINGS_FILE = (0, import_path2.join)(CLAUDE_DIR, "settings.json");
+var CHAIN_CONFIG_FILE = (0, import_path2.join)(HOOKS_DIR, "chain-config.json");
+var VERIFICATION_RULES_FILE = (0, import_path2.join)(HOOKS_DIR, "verification-rules.json");
+var HOOKS_CONFIG_FILE = (0, import_path2.join)(HOOKS_DIR, "hooks-config.yaml");
+var CHAIN_EVENTS_LOG = (0, import_path2.join)(TMP_DIR, "chain-events.jsonl");
+
+// src/utils/state.ts
+var STATE_DIR = (0, import_path3.join)(TMP_DIR, "chain-state");
+function statePath(sessionId) {
+  return (0, import_path3.join)(STATE_DIR, `${sessionId}.json`);
+}
+function getState(sessionId) {
+  if (!sessionId) return null;
+  const file = statePath(sessionId);
+  if (!(0, import_fs2.existsSync)(file)) return null;
+  try {
+    return JSON.parse((0, import_fs2.readFileSync)(file, "utf-8"));
+  } catch {
+    return null;
+  }
+}
+
 // src/hooks/runner.ts
-var PLUGIN_ROOT = process.env.CLAUDE_PLUGIN_ROOT || (0, import_path2.dirname)((0, import_path2.dirname)(__filename));
-var PLUGIN_SCRIPTS = (0, import_path2.join)(PLUGIN_ROOT, "scripts");
+function logToProject(cwd, msg) {
+  try {
+    const tmpDir = (0, import_path4.join)(cwd, ".claude", "tmp");
+    if (!(0, import_fs3.existsSync)(tmpDir)) (0, import_fs3.mkdirSync)(tmpDir, { recursive: true });
+    const logFile = (0, import_path4.join)(tmpDir, "runner.log");
+    (0, import_fs3.appendFileSync)(logFile, `[${(/* @__PURE__ */ new Date()).toISOString()}] ${msg}
+`);
+  } catch {
+  }
+}
+var PLUGIN_ROOT = process.env.CLAUDE_PLUGIN_ROOT || (0, import_path4.dirname)((0, import_path4.dirname)(__filename));
+var PLUGIN_SCRIPTS = (0, import_path4.join)(PLUGIN_ROOT, "scripts");
 function parseSimpleYaml(content) {
   const result = {};
   let currentKey = "";
@@ -58,24 +107,24 @@ function parseSimpleYaml(content) {
 }
 function resolveScriptPath(script, cwd) {
   if (script.startsWith("plugin:")) {
-    return (0, import_path2.join)(PLUGIN_SCRIPTS, script.replace("plugin:", ""));
+    return (0, import_path4.join)(PLUGIN_SCRIPTS, script.replace("plugin:", ""));
   }
   if (script.startsWith("./") || script.startsWith("../")) {
-    const resolved = (0, import_path2.resolve)((0, import_path2.join)(cwd, ".claude", "hooks", script));
-    const base = (0, import_path2.resolve)((0, import_path2.join)(cwd, ".claude"));
+    const resolved = (0, import_path4.resolve)((0, import_path4.join)(cwd, ".claude", "hooks", script));
+    const base = (0, import_path4.resolve)((0, import_path4.join)(cwd, ".claude"));
     if (!resolved.startsWith(base)) return null;
     return resolved;
   }
   if (script.startsWith("/")) {
     return script;
   }
-  return (0, import_path2.join)(PLUGIN_SCRIPTS, script);
+  return (0, import_path4.join)(PLUGIN_SCRIPTS, script);
 }
 function getUserHooks(event, cwd) {
-  const configPath = (0, import_path2.join)(cwd, ".claude", "hooks.yaml");
-  if (!(0, import_fs2.existsSync)(configPath)) return [];
+  const configPath = (0, import_path4.join)(cwd, ".claude", "hooks.yaml");
+  if (!(0, import_fs3.existsSync)(configPath)) return [];
   try {
-    const content = (0, import_fs2.readFileSync)(configPath, "utf-8");
+    const content = (0, import_fs3.readFileSync)(configPath, "utf-8");
     const config = parseSimpleYaml(content);
     const scripts = config[event] || [];
     return scripts.map((s) => resolveScriptPath(s, cwd)).filter((p) => p !== null);
@@ -111,7 +160,7 @@ function getChainHooks(event, cwd) {
   }
 }
 function runHook(hookPath, stdin) {
-  if (!(0, import_fs2.existsSync)(hookPath)) {
+  if (!(0, import_fs3.existsSync)(hookPath)) {
     console.error(`[runner] Hook not found: ${hookPath}`);
     return {};
   }
@@ -151,7 +200,7 @@ function main() {
   }
   let stdin = "";
   try {
-    stdin = (0, import_fs2.readFileSync)(0, "utf-8").trim();
+    stdin = (0, import_fs3.readFileSync)(0, "utf-8").trim();
   } catch {
     process.exit(0);
   }
@@ -162,10 +211,39 @@ function main() {
     if (payload.cwd) cwd = payload.cwd;
   } catch {
   }
-  const hooks = [
-    ...getUserHooks(eventArg, cwd),
-    ...getChainHooks(eventArg, cwd)
-  ];
+  if (eventArg === "Stop") {
+    try {
+      const payload = JSON.parse(stdin);
+      const sessionId = payload.session_id ?? "";
+      if (sessionId) {
+        const chainContent = readActiveChainContent(cwd);
+        if (chainContent) {
+          const state = getState(sessionId);
+          if (state?.currentAgent) {
+            const next = state.currentAgent;
+            logToProject(cwd, `Stop BLOCKED | pending=${next} | session=${sessionId}`);
+            console.log(JSON.stringify({
+              decision: "block",
+              reason: `<system-reminder>
+## MANDATORY NEXT STEP
+You MUST spawn the **${next}** agent before stopping.
+
+Command: Use Agent tool with subagent_type="${next}"
+
+Do NOT stop. Do NOT ask the user. Follow the chain.
+</system-reminder>`
+            }));
+            process.exit(0);
+          }
+        }
+      }
+    } catch {
+    }
+  }
+  const userHooks = getUserHooks(eventArg, cwd);
+  const chainHooks = getChainHooks(eventArg, cwd);
+  const hooks = [...userHooks, ...chainHooks];
+  logToProject(cwd, `${eventArg} | cwd=${cwd} | userHooks=${userHooks.length} | chainHooks=${chainHooks.length} | total=${hooks.length}`);
   if (hooks.length === 0) process.exit(0);
   for (const hookPath of hooks) {
     const result = runHook(hookPath, stdin);

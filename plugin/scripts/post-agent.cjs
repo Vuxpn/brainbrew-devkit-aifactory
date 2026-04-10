@@ -431,6 +431,8 @@ function main() {
     const tokens = p.tool_response?.totalTokens ?? 0;
     const ms = p.tool_response?.totalDurationMs ?? 0;
     const tools = p.tool_response?.totalToolUseCount ?? 0;
+    const prompt = p.tool_input?.prompt ?? "";
+    const description = p.tool_input?.description ?? "";
     const _transcriptPath = p.transcript_path ?? "";
     const sessionId = p.session_id ?? "";
     const cwd = p.cwd ?? process.cwd();
@@ -471,10 +473,18 @@ duration_ms: ${ms}
 tools: ${tools}
 timestamp: ${(/* @__PURE__ */ new Date()).toISOString()}
 session: ${sessionId}
+description: "${description.replace(/"/g, '\\"')}"
 ---
 
 `;
-          (0, import_fs5.writeFileSync)((0, import_path6.join)(outputDir, filename), header + text);
+          const promptSection = prompt ? `## Prompt
+
+${prompt}
+
+## Output
+
+` : "";
+          (0, import_fs5.writeFileSync)((0, import_path6.join)(outputDir, filename), header + promptSection + text);
           log(LOG_FILE, `[SAVE] ${type} \u2192 ${type.toLowerCase()}/${filename} (${text.length} chars)`);
         } catch {
         }
@@ -648,10 +658,18 @@ tools: ${tools}
 timestamp: ${(/* @__PURE__ */ new Date()).toISOString()}
 session: ${sessionId}
 next: ${next ?? "END"}
+description: "${description.replace(/"/g, '\\"')}"
 ---
 
 `;
-        (0, import_fs5.writeFileSync)((0, import_path6.join)(outputDir, filename), header + text);
+        const promptSection = prompt ? `## Prompt
+
+${prompt}
+
+## Output
+
+` : "";
+        (0, import_fs5.writeFileSync)((0, import_path6.join)(outputDir, filename), header + promptSection + text);
         log(LOG_FILE, `[SAVE] ${type} \u2192 ${type.toLowerCase()}/${filename} (${text.length} chars)`);
       } catch {
       }

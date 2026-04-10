@@ -401,7 +401,7 @@ function main(): void {
     if (!stdin) process.exit(0);
 
     const p = JSON.parse(stdin) as {
-      tool_input?: { subagent_type?: string };
+      tool_input?: { subagent_type?: string; prompt?: string; description?: string };
       tool_response?: {
         agentId?: string;
         totalTokens?: number;
@@ -419,6 +419,8 @@ function main(): void {
     const tokens = p.tool_response?.totalTokens ?? 0;
     const ms = p.tool_response?.totalDurationMs ?? 0;
     const tools = p.tool_response?.totalToolUseCount ?? 0;
+    const prompt = p.tool_input?.prompt ?? '';
+    const description = p.tool_input?.description ?? '';
     const _transcriptPath = p.transcript_path ?? '';
     const sessionId = p.session_id ?? '';
     const cwd = p.cwd ?? process.cwd();
@@ -452,8 +454,9 @@ function main(): void {
           if (!existsSync(outputDir)) mkdirSync(outputDir, { recursive: true });
           const ts = new Date().toISOString().replace(/[:.]/g, '-').substring(0, 19);
           const filename = `${ts}.md`;
-          const header = `---\nagent: ${type}\nid: ${id}\ntokens: ${tokens}\nduration_ms: ${ms}\ntools: ${tools}\ntimestamp: ${new Date().toISOString()}\nsession: ${sessionId}\n---\n\n`;
-          writeFileSync(join(outputDir, filename), header + text);
+          const header = `---\nagent: ${type}\nid: ${id}\ntokens: ${tokens}\nduration_ms: ${ms}\ntools: ${tools}\ntimestamp: ${new Date().toISOString()}\nsession: ${sessionId}\ndescription: "${description.replace(/"/g, '\\"')}"\n---\n\n`;
+          const promptSection = prompt ? `## Prompt\n\n${prompt}\n\n## Output\n\n` : '';
+          writeFileSync(join(outputDir, filename), header + promptSection + text);
           log(LOG_FILE, `[SAVE] ${type} → ${type.toLowerCase()}/${filename} (${text.length} chars)`);
         } catch { /* ignore */ }
       }
@@ -616,8 +619,9 @@ DO NOT ask user. DO NOT skip. DO NOT background agents.
         if (!existsSync(outputDir)) mkdirSync(outputDir, { recursive: true });
         const ts = new Date().toISOString().replace(/[:.]/g, '-').substring(0, 19);
         const filename = `${ts}.md`;
-        const header = `---\nagent: ${type}\nid: ${id}\ntokens: ${tokens}\nduration_ms: ${ms}\ntools: ${tools}\ntimestamp: ${new Date().toISOString()}\nsession: ${sessionId}\nnext: ${next ?? 'END'}\n---\n\n`;
-        writeFileSync(join(outputDir, filename), header + text);
+        const header = `---\nagent: ${type}\nid: ${id}\ntokens: ${tokens}\nduration_ms: ${ms}\ntools: ${tools}\ntimestamp: ${new Date().toISOString()}\nsession: ${sessionId}\nnext: ${next ?? 'END'}\ndescription: "${description.replace(/"/g, '\\"')}"\n---\n\n`;
+        const promptSection = prompt ? `## Prompt\n\n${prompt}\n\n## Output\n\n` : '';
+        writeFileSync(join(outputDir, filename), header + promptSection + text);
         log(LOG_FILE, `[SAVE] ${type} → ${type.toLowerCase()}/${filename} (${text.length} chars)`);
       } catch { /* ignore save failures */ }
     }

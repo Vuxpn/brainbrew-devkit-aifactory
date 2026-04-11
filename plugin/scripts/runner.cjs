@@ -310,6 +310,9 @@ Or if the user said to skip: proceed normally.
 Chain step pending. Do NOT use ${toolName} \u2014 spawn the **${next}** agent first.
 
 Command: Use Agent tool with subagent_type="${next}"
+
+If you need a different workflow, use chain_continue MCP tool to switch chain:
+mcp__plugin_brainbrew-devkit_brainbrew__chain_continue(chain: "develop", session_id: "${sessionId}")
 </system-reminder>`;
                     console.log(JSON.stringify({ decision: "block", reason }));
                     process.exit(0);

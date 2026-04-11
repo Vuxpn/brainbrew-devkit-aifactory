@@ -510,27 +510,6 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         const sessionId = args?.session_id as string;
         const chains = listChains(cwd);
 
-        if (!chain) {
-          const activeName = getActiveChainName(cwd);
-          const pPath = join(cwd, '.claude', 'chain-config.yaml');
-          const pContent = existsSync(pPath) ? readFileSync(pPath, 'utf-8') : '';
-          const dMatch = pContent.match(/^chains_dir:\s*(.+)/m);
-          const chainsDir = dMatch ? dMatch[1].trim() : '.claude/chains/';
-          const lines: string[] = [];
-          for (const c of chains) {
-            const chainPath = join(cwd, chainsDir, `${c}.yaml`);
-            let agents = '';
-            if (existsSync(chainPath)) {
-              const content = readFileSync(chainPath, 'utf-8');
-              const flowAgents = [...content.matchAll(/^  (\S+):/gm)].map(m => m[1]);
-              agents = flowAgents.join(' → ');
-            }
-            const marker = c === activeName ? ' (active)' : '';
-            lines.push(`- **${c}**${marker}: ${agents}`);
-          }
-          return success(`Available chains:\n\n${lines.join('\n')}\n\nUsage: chain_continue(chain: "name", session_id: "...")`);
-        }
-
         if (!chains.includes(chain)) {
           return error(`Chain "${chain}" not found. Available: ${chains.join(', ')}`);
         }

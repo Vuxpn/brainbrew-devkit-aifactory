@@ -254,7 +254,7 @@ function main(): void {
                     console.log(JSON.stringify({ continue: true, hookSpecificOutput: { hookEventName: 'PreToolUse', additionalContext: reason } }));
                     process.exit(0);
                   } else {
-                    reason = `<system-reminder>\nChain step pending. Do NOT use ${toolName} — spawn the **${next}** agent first.\n\nCommand: Use Agent tool with subagent_type="${next}"\n</system-reminder>`;
+                    reason = `<system-reminder>\nChain step pending. Do NOT use ${toolName} — spawn the **${next}** agent first.\n\nCommand: Use Agent tool with subagent_type="${next}"\n\nIf you need a different workflow, use chain_continue MCP tool to switch chain:\nmcp__plugin_brainbrew-devkit_brainbrew__chain_continue(chain: "develop", session_id: "${sessionId}")\n</system-reminder>`;
                     console.log(JSON.stringify({ decision: 'block', reason }));
                     process.exit(0);
                   }

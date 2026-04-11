@@ -21441,30 +21441,6 @@ ${lines.join("\n")}`);
         const chain = args?.chain;
         const sessionId = args?.session_id;
         const chains = listChains(cwd);
-        if (!chain) {
-          const activeName = getActiveChainName(cwd);
-          const pPath = (0, import_path3.join)(cwd, ".claude", "chain-config.yaml");
-          const pContent = (0, import_fs3.existsSync)(pPath) ? (0, import_fs3.readFileSync)(pPath, "utf-8") : "";
-          const dMatch = pContent.match(/^chains_dir:\s*(.+)/m);
-          const chainsDir = dMatch ? dMatch[1].trim() : ".claude/chains/";
-          const lines = [];
-          for (const c of chains) {
-            const chainPath2 = (0, import_path3.join)(cwd, chainsDir, `${c}.yaml`);
-            let agents = "";
-            if ((0, import_fs3.existsSync)(chainPath2)) {
-              const content = (0, import_fs3.readFileSync)(chainPath2, "utf-8");
-              const flowAgents = [...content.matchAll(/^  (\S+):/gm)].map((m) => m[1]);
-              agents = flowAgents.join(" \u2192 ");
-            }
-            const marker = c === activeName ? " (active)" : "";
-            lines.push(`- **${c}**${marker}: ${agents}`);
-          }
-          return success2(`Available chains:
-
-${lines.join("\n")}
-
-Usage: chain_continue(chain: "name", session_id: "...")`);
-        }
         if (!chains.includes(chain)) {
           return error2(`Chain "${chain}" not found. Available: ${chains.join(", ")}`);
         }

@@ -1,7 +1,7 @@
 "use strict";
 
 // src/hooks/subagent-start.ts
-var import_fs5 = require("fs");
+var import_fs4 = require("fs");
 
 // src/utils/state.ts
 var import_fs = require("fs");
@@ -65,120 +65,13 @@ function logEvent(data) {
   (0, import_fs2.appendFileSync)(CHAIN_EVENTS_LOG, JSON.stringify(entry) + "\n");
 }
 
-// src/memory/bus.ts
+// src/utils/chain-resolver.ts
 var import_fs3 = require("fs");
 var import_path4 = require("path");
-var import_os2 = require("os");
-var GLOBAL_STORE_PATH = (0, import_path4.join)((0, import_os2.homedir)(), ".claude", "memory", "bus.json");
-var PROJECT_STORE_FILE = ".claude/memory/bus.json";
-function getProjectStorePath(cwd) {
-  return (0, import_path4.join)(cwd, PROJECT_STORE_FILE);
-}
-function ensureDir(filePath) {
-  const dir = (0, import_path4.dirname)(filePath);
-  if (!(0, import_fs3.existsSync)(dir)) {
-    (0, import_fs3.mkdirSync)(dir, { recursive: true });
-  }
-}
-function loadStore(path) {
-  if (!(0, import_fs3.existsSync)(path)) {
-    return { version: 1, messages: [] };
-  }
-  try {
-    return JSON.parse((0, import_fs3.readFileSync)(path, "utf-8"));
-  } catch {
-    return { version: 1, messages: [] };
-  }
-}
-function saveStore(path, store) {
-  ensureDir(path);
-  (0, import_fs3.writeFileSync)(path, JSON.stringify(store, null, 2));
-}
-var PRIORITY_ORDER = {
-  urgent: 4,
-  high: 3,
-  normal: 2,
-  low: 1
-};
-function subscribe(agentType, options = {}) {
-  const cwd = options.cwd || process.cwd();
-  const projectPath = getProjectStorePath(cwd);
-  const projectStore = loadStore(projectPath);
-  const globalStore = loadStore(GLOBAL_STORE_PATH);
-  const allMessages = [...globalStore.messages, ...projectStore.messages];
-  const now = (/* @__PURE__ */ new Date()).toISOString();
-  const relevant = allMessages.filter((msg) => {
-    if (msg.expiresAt && msg.expiresAt < now) return false;
-    if (msg.target === "global") return true;
-    if (msg.target === "next") return true;
-    if (msg.target === `agent:${agentType}`) return true;
-    if (options.chainId && msg.target === `chain:${options.chainId}`) return true;
-    if (options.sessionId && msg.target === `session:${options.sessionId}`) return true;
-    return false;
-  });
-  relevant.sort((a, b) => PRIORITY_ORDER[b.priority] - PRIORITY_ORDER[a.priority]);
-  const toConsume = relevant.filter(
-    (msg) => msg.persistence === "once" || msg.target === "next"
-  );
-  const consumeIds = new Set(toConsume.map((m) => m.id));
-  if (consumeIds.size > 0) {
-    projectStore.messages = projectStore.messages.filter((m) => !consumeIds.has(m.id));
-    globalStore.messages = globalStore.messages.filter((m) => !consumeIds.has(m.id));
-    saveStore(projectPath, projectStore);
-    saveStore(GLOBAL_STORE_PATH, globalStore);
-  }
-  return {
-    messages: relevant,
-    consumed: consumeIds.size
-  };
-}
-function sanitizeContent(content) {
-  return content.replace(/^#+/gm, "").replace(/\n+/g, " ").slice(0, 500);
-}
-function formatForContext(messages) {
-  if (messages.length === 0) return "";
-  const priorityGroups = {
-    urgent: [],
-    high: [],
-    normal: [],
-    low: []
-  };
-  messages.forEach((m) => priorityGroups[m.priority].push(m));
-  let output = "## Injected Context (Memory Bus)\n\n";
-  if (priorityGroups.urgent.length > 0) {
-    output += "### \u26A0\uFE0F URGENT\n";
-    priorityGroups.urgent.forEach((m) => {
-      output += `- ${sanitizeContent(m.content)}
-`;
-    });
-    output += "\n";
-  }
-  if (priorityGroups.high.length > 0) {
-    output += "### High Priority\n";
-    priorityGroups.high.forEach((m) => {
-      output += `- ${sanitizeContent(m.content)}
-`;
-    });
-    output += "\n";
-  }
-  const normalAndLow = [...priorityGroups.normal, ...priorityGroups.low];
-  if (normalAndLow.length > 0) {
-    output += "### Context\n";
-    normalAndLow.forEach((m) => {
-      output += `- ${sanitizeContent(m.content)}
-`;
-    });
-  }
-  return output.trim();
-}
-
-// src/utils/chain-resolver.ts
-var import_fs4 = require("fs");
-var import_path5 = require("path");
 function resolveActiveChain(cwd) {
-  const pointerPath = (0, import_path5.join)(cwd, ".claude", "chain-config.yaml");
-  if (!(0, import_fs4.existsSync)(pointerPath)) return null;
-  const content = (0, import_fs4.readFileSync)(pointerPath, "utf-8");
+  const pointerPath = (0, import_path4.join)(cwd, ".claude", "chain-config.yaml");
+  if (!(0, import_fs3.existsSync)(pointerPath)) return null;
+  const content = (0, import_fs3.readFileSync)(pointerPath, "utf-8");
   if (/^(flow|hooks):/m.test(content)) {
     return { configPath: pointerPath, chainName: "default", isLegacy: true };
   }
@@ -188,28 +81,28 @@ function resolveActiveChain(cwd) {
   const dirMatch = content.match(/^chains_dir:\s*(.+)/m);
   const chainsDir = dirMatch ? dirMatch[1].trim() : ".claude/chains/";
   if (active.includes("..") || chainsDir.includes("..")) return null;
-  const chainPath = (0, import_path5.join)(cwd, chainsDir, `${active}.yaml`);
-  const resolvedPath = (0, import_path5.resolve)(chainPath);
-  const expectedBase = (0, import_path5.resolve)((0, import_path5.join)(cwd, ".claude"));
+  const chainPath = (0, import_path4.join)(cwd, chainsDir, `${active}.yaml`);
+  const resolvedPath = (0, import_path4.resolve)(chainPath);
+  const expectedBase = (0, import_path4.resolve)((0, import_path4.join)(cwd, ".claude"));
   if (!resolvedPath.startsWith(expectedBase)) return null;
-  if (!(0, import_fs4.existsSync)(chainPath)) return null;
+  if (!(0, import_fs3.existsSync)(chainPath)) return null;
   return { configPath: chainPath, chainName: active, isLegacy: false };
 }
 function readActiveChainContent(cwd) {
   const resolved = resolveActiveChain(cwd);
   if (!resolved) return null;
-  return (0, import_fs4.readFileSync)(resolved.configPath, "utf-8");
+  return (0, import_fs3.readFileSync)(resolved.configPath, "utf-8");
 }
 
 // src/hooks/subagent-start.ts
-var import_path6 = require("path");
-var LOG_FILE = (0, import_path6.join)(TMP_DIR, "subagent-start.log");
+var import_path5 = require("path");
+var LOG_FILE = (0, import_path5.join)(TMP_DIR, "subagent-start.log");
 var CONFIG = { agents: {} };
 try {
-  CONFIG = JSON.parse((0, import_fs5.readFileSync)(CHAIN_CONFIG_FILE, "utf-8"));
+  CONFIG = JSON.parse((0, import_fs4.readFileSync)(CHAIN_CONFIG_FILE, "utf-8"));
 } catch {
   try {
-    const oldRules = JSON.parse((0, import_fs5.readFileSync)(VERIFICATION_RULES_FILE, "utf-8"));
+    const oldRules = JSON.parse((0, import_fs4.readFileSync)(VERIFICATION_RULES_FILE, "utf-8"));
     for (const [type, rule] of Object.entries(oldRules)) {
       CONFIG.agents[type] = { chainNext: rule.chainNext };
     }
@@ -269,7 +162,7 @@ function parseFlowContext(content) {
 }
 function main() {
   try {
-    const stdin = (0, import_fs5.readFileSync)(0, "utf-8").trim();
+    const stdin = (0, import_fs4.readFileSync)(0, "utf-8").trim();
     if (!stdin) process.exit(0);
     const p = JSON.parse(stdin);
     const type = p.agent_type ?? "";
@@ -317,22 +210,6 @@ This helps the workflow decide if more implementation is needed.
 `;
     }
     const state = getState(sessionId);
-    try {
-      const { messages, consumed } = subscribe(type, {
-        sessionId,
-        chainId: state?.currentChain,
-        cwd: process.cwd()
-      });
-      if (messages.length > 0) {
-        const busContext = formatForContext(messages);
-        context += `
-${busContext}
-`;
-        log(LOG_FILE, `[BUS] Injected ${messages.length} messages (consumed: ${consumed})`);
-      }
-    } catch (e) {
-      log(LOG_FILE, `[BUS] Error: ${e.message}`);
-    }
     if (state?.activeTeam) {
       const team = state.activeTeam;
       const myTeammate = team.teammates.find((t) => t.agent === type.toLowerCase());
@@ -355,12 +232,24 @@ ${JSON.stringify(state.sharedContext, null, 2)}
     }
     if (state?.previousAgents?.length) {
       const prev = state.previousAgents[state.previousAgents.length - 1];
-      context += `
-## Previous Agent Output
-- Agent: ${prev.type}
-- Summary: ${prev.outputSummary ?? "N/A"}
-- Output: ${prev.outputPath ?? "N/A"}
+      const prevId = prev.id;
+      if (prevId) {
+        const tmpOutputFile = (0, import_path5.join)(TMP_DIR, "agent-outputs", `${prevId}.md`);
+        if ((0, import_fs4.existsSync)(tmpOutputFile)) {
+          try {
+            const prevOutput = (0, import_fs4.readFileSync)(tmpOutputFile, "utf-8");
+            if (prevOutput) {
+              context += `
+## Previous Agent: ${prev.type}
+
+${prevOutput}
 `;
+              log(LOG_FILE, `[PREV] Injected ${prev.type} output (${prevOutput.length} chars)`);
+            }
+          } catch {
+          }
+        }
+      }
     }
     const cwd = p.cwd ?? process.cwd();
     try {

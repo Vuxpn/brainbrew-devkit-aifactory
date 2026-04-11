@@ -1,8 +1,7 @@
-import { readFileSync } from 'fs';
+import { readFileSync, existsSync } from 'fs';
 import { getState, updateState } from '../utils/state.js';
 import { log, logEvent } from '../utils/logger.js';
 import { CHAIN_CONFIG_FILE, VERIFICATION_RULES_FILE, TMP_DIR } from '../utils/paths.js';
-import { subscribe, formatForContext } from '../memory/bus.js';
 import { readActiveChainContent } from '../utils/chain-resolver.js';
 import { join } from 'path';
 
@@ -163,23 +162,6 @@ This helps the workflow decide if more implementation is needed.
     // Get session state
     const state = getState(sessionId);
 
-    // ─── Message Bus: Subscribe and inject messages ───
-    try {
-      const { messages, consumed } = subscribe(type, {
-        sessionId,
-        chainId: (state as Record<string, unknown> | null)?.currentChain as string | undefined,
-        cwd: process.cwd(),
-      });
-
-      if (messages.length > 0) {
-        const busContext = formatForContext(messages);
-        context += `\n${busContext}\n`;
-        log(LOG_FILE, `[BUS] Injected ${messages.length} messages (consumed: ${consumed})`);
-      }
-    } catch (e) {
-      log(LOG_FILE, `[BUS] Error: ${(e as Error).message}`);
-    }
-
     if (state?.activeTeam) {
       const team = state.activeTeam as { name: string; teammates: Array<{ name: string; agent: string; status: string }> };
       const myTeammate = team.teammates.find(t => t.agent === type.toLowerCase());
@@ -201,14 +183,22 @@ Focus on your specific review area. Your output will be combined with other team
 ${JSON.stringify(state.sharedContext, null, 2)}
 `;
     }
+    // ─── Inject previous agent's full output ───
     if (state?.previousAgents?.length) {
       const prev = state.previousAgents[state.previousAgents.length - 1];
-      context += `
-## Previous Agent Output
-- Agent: ${prev.type}
-- Summary: ${prev.outputSummary ?? 'N/A'}
-- Output: ${(prev as { outputPath?: string }).outputPath ?? 'N/A'}
-`;
+      const prevId = (prev as { id?: string }).id;
+      if (prevId) {
+        const tmpOutputFile = join(TMP_DIR, 'agent-outputs', `${prevId}.md`);
+        if (existsSync(tmpOutputFile)) {
+          try {
+            const prevOutput = readFileSync(tmpOutputFile, 'utf-8');
+            if (prevOutput) {
+              context += `\n## Previous Agent: ${prev.type}\n\n${prevOutput}\n`;
+              log(LOG_FILE, `[PREV] Injected ${prev.type} output (${prevOutput.length} chars)`);
+            }
+          } catch { /* ignore */ }
+        }
+      }
     }
 
     // ─── Chain Context Inject: load context from chain YAML flow node ───

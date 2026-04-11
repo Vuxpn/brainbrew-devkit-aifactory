@@ -691,6 +691,12 @@ ${preview}`;
       });
       state.currentAgent = next ?? null;
       updateState(sessionId, state);
+      try {
+        const tmpOutputDir = (0, import_path6.join)(TMP_DIR, "agent-outputs");
+        if (!(0, import_fs5.existsSync)(tmpOutputDir)) (0, import_fs5.mkdirSync)(tmpOutputDir, { recursive: true });
+        (0, import_fs5.writeFileSync)((0, import_path6.join)(tmpOutputDir, `${id}.md`), text);
+      } catch {
+      }
     }
     const flowNode = config.flow[type.toLowerCase()];
     if (flowNode?.saveOutput === "true" && text && cwd) {

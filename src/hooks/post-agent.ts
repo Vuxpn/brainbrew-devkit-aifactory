@@ -667,6 +667,13 @@ DO NOT ask user. DO NOT skip. DO NOT background agents.
       });
       state.currentAgent = next ?? null;
       updateState(sessionId, state as Parameters<typeof updateState>[1]);
+
+      // Always save full output to tmp for next agent injection
+      try {
+        const tmpOutputDir = join(TMP_DIR, 'agent-outputs');
+        if (!existsSync(tmpOutputDir)) mkdirSync(tmpOutputDir, { recursive: true });
+        writeFileSync(join(tmpOutputDir, `${id}.md`), text);
+      } catch { /* ignore */ }
     }
 
     // Save output if configured

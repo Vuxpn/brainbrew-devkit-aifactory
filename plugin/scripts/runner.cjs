@@ -257,7 +257,8 @@ function main() {
 ## Previous Agent Output (${prev.type})
 
 ${prevOutput}`;
-                logToProject(cwd, `PreToolUse INJECT prev ${prev.type} output (${prevOutput.length} chars) into Agent prompt`);
+                logToProject(cwd, `PreToolUse INJECT prev ${prev.type} output (${prevOutput.length} chars) into ${toolInput.subagent_type ?? "agent"} prompt
+ORIGINAL INPUT: ${JSON.stringify(toolInput)}`);
                 console.log(JSON.stringify({
                   hookSpecificOutput: {
                     hookEventName: "PreToolUse",

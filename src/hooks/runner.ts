@@ -2,6 +2,7 @@
 
 import { readFileSync, existsSync, appendFileSync, mkdirSync } from 'fs';
 import { join, dirname, resolve } from 'path';
+import { homedir } from 'os';
 import { execSync } from 'child_process';
 import { readActiveChainContent } from '../utils/chain-resolver.js';
 import { getState, updateState } from '../utils/state.js';
@@ -187,6 +188,39 @@ function main(): void {
         }
       }
     } catch { /* ignore */ }
+  }
+
+  if (eventArg === 'PreToolUse') {
+    try {
+      const payload = JSON.parse(stdin);
+      const sessionId = payload.session_id ?? '';
+      const toolName = payload.tool_name ?? '';
+      const toolInput = payload.tool_input ?? {};
+
+      if (toolName === 'Agent' && sessionId) {
+        const state = getState(sessionId);
+        if (state?.previousAgents?.length) {
+          const prev = state.previousAgents[state.previousAgents.length - 1] as { type: string; id?: string };
+          if (prev.id) {
+            const prevOutputFile = join(homedir(), '.claude', 'tmp', 'agent-outputs', `${prev.id}.md`);
+            if (existsSync(prevOutputFile)) {
+              const prevOutput = readFileSync(prevOutputFile, 'utf-8');
+              if (prevOutput && toolInput.prompt) {
+                const injected = `${toolInput.prompt}\n\n---\n\n## Previous Agent Output (${prev.type})\n\n${prevOutput}`;
+                logToProject(cwd, `PreToolUse INJECT prev ${prev.type} output (${prevOutput.length} chars) into Agent prompt`);
+                console.log(JSON.stringify({
+                  hookSpecificOutput: {
+                    hookEventName: 'PreToolUse',
+                    updatedInput: { ...toolInput, prompt: injected },
+                  },
+                }));
+                process.exit(0);
+              }
+            }
+          }
+        }
+      }
+    } catch { /* fall through */ }
   }
 
   if (eventArg === 'PreToolUse' || eventArg === 'Stop') {

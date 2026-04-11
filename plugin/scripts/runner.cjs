@@ -4,6 +4,7 @@
 // src/hooks/runner.ts
 var import_fs3 = require("fs");
 var import_path4 = require("path");
+var import_os2 = require("os");
 var import_child_process = require("child_process");
 
 // src/utils/chain-resolver.ts
@@ -229,6 +230,44 @@ function main() {
           const skipped = state.currentAgent;
           updateState(sessionId, { currentAgent: void 0, chainBlockCount: 0 });
           logToProject(cwd, `SKIP chain step | skipped=${skipped} | session=${sessionId}`);
+        }
+      }
+    } catch {
+    }
+  }
+  if (eventArg === "PreToolUse") {
+    try {
+      const payload = JSON.parse(stdin);
+      const sessionId = payload.session_id ?? "";
+      const toolName = payload.tool_name ?? "";
+      const toolInput = payload.tool_input ?? {};
+      if (toolName === "Agent" && sessionId) {
+        const state = getState(sessionId);
+        if (state?.previousAgents?.length) {
+          const prev = state.previousAgents[state.previousAgents.length - 1];
+          if (prev.id) {
+            const prevOutputFile = (0, import_path4.join)((0, import_os2.homedir)(), ".claude", "tmp", "agent-outputs", `${prev.id}.md`);
+            if ((0, import_fs3.existsSync)(prevOutputFile)) {
+              const prevOutput = (0, import_fs3.readFileSync)(prevOutputFile, "utf-8");
+              if (prevOutput && toolInput.prompt) {
+                const injected = `${toolInput.prompt}
+
+---
+
+## Previous Agent Output (${prev.type})
+
+${prevOutput}`;
+                logToProject(cwd, `PreToolUse INJECT prev ${prev.type} output (${prevOutput.length} chars) into Agent prompt`);
+                console.log(JSON.stringify({
+                  hookSpecificOutput: {
+                    hookEventName: "PreToolUse",
+                    updatedInput: { ...toolInput, prompt: injected }
+                  }
+                }));
+                process.exit(0);
+              }
+            }
+          }
         }
       }
     } catch {

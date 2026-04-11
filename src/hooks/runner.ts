@@ -228,8 +228,10 @@ function main(): void {
       if (toolName === 'Agent' && sessionId) {
         const state = getState(sessionId);
         if (state?.previousAgents?.length) {
-          const prev = state.previousAgents[state.previousAgents.length - 1] as { type: string; id?: string };
-          if (prev.id) {
+          const prev = state.previousAgents[state.previousAgents.length - 1] as { type: string; id?: string; completedAt?: string };
+          const prevAge = prev.completedAt ? Date.now() - new Date(prev.completedAt).getTime() : Infinity;
+          const MAX_AGE_MS = 10 * 60 * 1000;
+          if (prev.id && prevAge < MAX_AGE_MS) {
             const prevOutputFile = join(homedir(), '.claude', 'tmp', 'agent-outputs', `${prev.id}.md`);
             if (existsSync(prevOutputFile)) {
               const prevOutput = readFileSync(prevOutputFile, 'utf-8');

@@ -707,7 +707,6 @@ ${preview}`;
         state.currentAgent = null;
         state.allowedAgents = [];
         state.chainBlockCount = 0;
-        state.previousAgents = [];
       }
       updateState(sessionId, state);
       try {

@@ -9,8 +9,9 @@ import {
   CallToolRequestSchema,
   ListToolsRequestSchema,
 } from '@modelcontextprotocol/sdk/types.js';
-import { readFileSync, existsSync, mkdirSync, readdirSync, copyFileSync, statSync } from 'fs';
+import { readFileSync, writeFileSync, existsSync, mkdirSync, readdirSync, copyFileSync, statSync } from 'fs';
 import { join, dirname } from 'path';
+import { homedir } from 'os';
 import { resolveActiveChain, listChains, getActiveChainName, writePointer, migrateToMultiChain } from '../utils/chain-resolver.js';
 
 // Recursive directory copy
@@ -92,6 +93,18 @@ const TOOLS = [
         chain: { type: 'string', description: 'Chain name to activate (without .yaml extension)' },
       },
       required: ['chain'],
+    },
+  },
+  {
+    name: 'chain_continue',
+    description: 'Switch to a chain and immediately enforce spawning its first agent. Use when you need to jump into a different workflow (e.g., from docs chain to develop chain). The first agent becomes mandatory — PreToolUse/Stop hooks will block until it is spawned.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        chain: { type: 'string', description: 'Chain name to switch to and start' },
+        session_id: { type: 'string', description: 'Current session ID (from hook payload)' },
+      },
+      required: ['chain', 'session_id'],
     },
   },
 
@@ -490,6 +503,70 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         const existingChainsDir = dirMatch ? dirMatch[1].trim() : '.claude/chains/';
         writePointer(cwd, chain, existingChainsDir);
         return success(`Switched active chain to "${chain}".`);
+      }
+
+      case 'chain_continue': {
+        const chain = args?.chain as string;
+        const sessionId = args?.session_id as string;
+        const chains = listChains(cwd);
+
+        if (!chain) {
+          const activeName = getActiveChainName(cwd);
+          const pPath = join(cwd, '.claude', 'chain-config.yaml');
+          const pContent = existsSync(pPath) ? readFileSync(pPath, 'utf-8') : '';
+          const dMatch = pContent.match(/^chains_dir:\s*(.+)/m);
+          const chainsDir = dMatch ? dMatch[1].trim() : '.claude/chains/';
+          const lines: string[] = [];
+          for (const c of chains) {
+            const chainPath = join(cwd, chainsDir, `${c}.yaml`);
+            let agents = '';
+            if (existsSync(chainPath)) {
+              const content = readFileSync(chainPath, 'utf-8');
+              const flowAgents = [...content.matchAll(/^  (\S+):/gm)].map(m => m[1]);
+              agents = flowAgents.join(' → ');
+            }
+            const marker = c === activeName ? ' (active)' : '';
+            lines.push(`- **${c}**${marker}: ${agents}`);
+          }
+          return success(`Available chains:\n\n${lines.join('\n')}\n\nUsage: chain_continue(chain: "name", session_id: "...")`);
+        }
+
+        if (!chains.includes(chain)) {
+          return error(`Chain "${chain}" not found. Available: ${chains.join(', ')}`);
+        }
+
+        const pointerPath = join(cwd, '.claude', 'chain-config.yaml');
+        const pointerContent = readFileSync(pointerPath, 'utf-8');
+        const dirMatch = pointerContent.match(/^chains_dir:\s*(.+)/m);
+        const existingChainsDir = dirMatch ? dirMatch[1].trim() : '.claude/chains/';
+        writePointer(cwd, chain, existingChainsDir);
+
+        const chainPath = join(cwd, existingChainsDir, `${chain}.yaml`);
+        let firstAgent = '';
+        if (existsSync(chainPath)) {
+          const content = readFileSync(chainPath, 'utf-8');
+          const flowMatch = content.match(/^flow:\s*\n\s{2}(\S+):/m);
+          if (flowMatch) firstAgent = flowMatch[1];
+        }
+
+        if (!firstAgent) {
+          return error(`Chain "${chain}" has no flow agents defined.`);
+        }
+
+        if (sessionId) {
+          const stateDir = join(homedir(), '.claude', 'tmp', 'chain-state');
+          if (!existsSync(stateDir)) mkdirSync(stateDir, { recursive: true });
+          const statePath = join(stateDir, `${sessionId}.json`);
+          let state: Record<string, unknown> = { previousAgents: [] };
+          if (existsSync(statePath)) {
+            try { state = JSON.parse(readFileSync(statePath, 'utf-8')); } catch {}
+          }
+          state.currentAgent = firstAgent;
+          state.chainBlockCount = 0;
+          writeFileSync(statePath, JSON.stringify(state, null, 2));
+        }
+
+        return success(`Switched to "${chain}" and set **${firstAgent}** as mandatory next agent. PreToolUse/Stop hooks will enforce spawning it.\n\nSpawn now: Agent(subagent_type="${firstAgent}")`);
       }
 
       // ─── memory_add ───

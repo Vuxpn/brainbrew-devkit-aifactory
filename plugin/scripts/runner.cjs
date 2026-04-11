@@ -288,7 +288,7 @@ ORIGINAL INPUT: ${JSON.stringify(toolInput)}`);
             const flowAgentPattern = new RegExp(`^  ${next}:`, "m");
             if (flowAgentPattern.test(chainContent)) {
               if (eventArg === "PreToolUse") {
-                if (toolName === "Agent" || toolName.startsWith("mcp__")) {
+                if (toolName === "Agent" || toolName.includes("chain_continue")) {
                 } else {
                   const blockCount = (state.chainBlockCount ?? 0) + 1;
                   updateState(sessionId, { chainBlockCount: blockCount });

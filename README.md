@@ -34,7 +34,7 @@ Claude Code has agents and teams. Brainbrew adds the **orchestration layer**:
 | **Failure recovery** | None (you see error, you fix) | Built-in (debugger → retry) |
 | **Quality gates** | None | Haiku QA + auto-retry |
 | **Parallel agents** | Teams (manual trigger) | Teams (auto in chain) |
-| **Inter-agent state** | None | Memory Bus |
+| **Inter-agent state** | None | Auto prev-output injection |
 
 ### vs. LangChain / CrewAI
 
@@ -55,7 +55,7 @@ No blank-page problem. Pick a template:
 - **devops** — scan → security → test → deploy → monitor → [rollback if alert]
 - **marketing** — research → write → edit → SEO → publish → analyze
 - **research** — gather → analyze → synthesize → report
-- And 6 more (docs, support, data, moderation, review, minimal)
+- And 7 more (docs, support, data, moderation, review, skill-dev, minimal)
 
 ### Declared in YAML. Your agents stay with you.
 
@@ -67,8 +67,9 @@ Chain config lives in git. Agents are markdown files in `.claude/agents/`. No ve
 - **AI-powered routing** — Haiku analyzes output and picks the next step
 - **Agent teams** — parallel execution with coordinated synthesis
 - **Quality gates** — `subagent-stop` hook validates output, retries up to 2x
-- **Memory Bus** — inter-agent state sharing across pipeline runs
-- **Loop detection** — prevents infinite cycles (MAX_AGENT_LOOPS=3)
+- **Auto context passing** — previous agent output injected directly into next agent's prompt
+- **Loop detection** — prevents infinite cycles (MAX_AGENT_LOOPS=0, off by default)
+- **Chain enforcement** — PreToolUse/Stop hooks block until chain steps are followed
 
 ## Quick Start
 
@@ -109,6 +110,9 @@ All functionality exposed via MCP - no CLI install needed:
 | `template_bump` | Set up workflow template |
 | `template_list` | Show available templates |
 | `chain_validate` | Validate chain config (agents exist, team nodes valid, routes correct) |
+| `chain_list` | List available chains and show active |
+| `chain_switch` | Switch active chain |
+| `chain_run` | Activate chain and enforce first agent |
 | `memory_add` | Send message to agents via Memory Bus |
 | `memory_list` | List messages in Memory Bus |
 | `memory_clear` | Clear messages from Memory Bus |
@@ -128,6 +132,7 @@ Agents, skills, and chain config are just files — Claude reads/writes them dir
 | **data** | 5 | data-collector → cleaner → analyzer → visualizer → reporter |
 | **moderation** | 5 | content-scanner → classifier → flagger → reviewer → actioner |
 | **review** | 1 | code-reviewer → END |
+| **skill-dev** | 4 | skill-finder → skill-creator → skill-reviewer (PASS=END, FIX→skill-improver) |
 | **minimal** | 0 | hooks only (add your own) |
 
 > **Note:** After bumping a template (`template_bump`), restart your Claude Code session for the new hooks, agents, and chain config to take effect.

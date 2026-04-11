@@ -27,7 +27,11 @@ flow:
 
   implementer:
     routes:
-      parallel-review: "Code implemented, ready for review"
+      parallel-review: "Code implemented and compiles, ready for review"
+      implementer: "Code has compile errors or incomplete, needs another pass"
+    decide: |
+      If code compiles successfully, build passes, implementation complete → "parallel-review"
+      If code has compile errors, build fails, incomplete implementation, hit context limits → "implementer"
 
   parallel-review:
     type: team

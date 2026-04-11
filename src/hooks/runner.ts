@@ -7,7 +7,7 @@ import { execSync } from 'child_process';
 import { readActiveChainContent } from '../utils/chain-resolver.js';
 import { getState, updateState } from '../utils/state.js';
 
-const RUNNER_LOG_DIR = '/tmp/claude-chain';
+const RUNNER_LOG_DIR = join(homedir(), '.claude', 'tmp');
 const RUNNER_LOG = join(RUNNER_LOG_DIR, 'runner.log');
 
 function logToProject(_cwd: string, msg: string): void {

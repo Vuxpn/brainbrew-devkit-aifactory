@@ -11,7 +11,7 @@ export const AGENTS_DIR = join(CLAUDE_DIR, 'agents');
 export const SKILLS_DIR = join(CLAUDE_DIR, 'skills');
 export const HOOKS_DIR = join(CLAUDE_DIR, 'hooks', 'chains');
 export const CUSTOM_HOOKS_DIR = join(HOOKS_DIR, 'custom');
-export const TMP_DIR = join('/tmp', 'claude-chain');
+export const TMP_DIR = join(CLAUDE_DIR, 'tmp');
 export const PROJECTS_DIR = join(CLAUDE_DIR, 'projects');
 
 // Config files

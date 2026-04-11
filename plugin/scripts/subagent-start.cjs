@@ -230,27 +230,6 @@ Focus on your specific review area. Your output will be combined with other team
 ${JSON.stringify(state.sharedContext, null, 2)}
 `;
     }
-    if (state?.previousAgents?.length) {
-      const prev = state.previousAgents[state.previousAgents.length - 1];
-      const prevId = prev.id;
-      if (prevId) {
-        const tmpOutputFile = (0, import_path5.join)(TMP_DIR, "agent-outputs", `${prevId}.md`);
-        if ((0, import_fs4.existsSync)(tmpOutputFile)) {
-          try {
-            const prevOutput = (0, import_fs4.readFileSync)(tmpOutputFile, "utf-8");
-            if (prevOutput) {
-              context += `
-## Previous Agent: ${prev.type}
-
-${prevOutput}
-`;
-              log(LOG_FILE, `[PREV] Injected ${prev.type} output (${prevOutput.length} chars)`);
-            }
-          } catch {
-          }
-        }
-      }
-    }
     const cwd = p.cwd ?? process.cwd();
     try {
       const chainContent = readActiveChainContent(cwd);

@@ -21,7 +21,7 @@ Before running any user or chain hooks, `runner.cjs` enforces pending chain step
 - **Release:** After 3 blocked attempts on the same event, the pending state is cleared and the block is lifted with a hint.
 - **Bypass:** The user can type `skip chain` or `/skip-chain` at any time to clear the pending chain step immediately.
 
-Each agent automatically receives the previous agent's full output injected into its context by SubagentStart. This requires no configuration — it happens for every agent in a chain.
+Each agent automatically receives the previous agent's full output injected into its prompt by the PreToolUse hook (`runner.cjs`) as a `## Previous Agent Output ({type})` section. This requires no configuration — it happens for every agent in a chain.
 
 # Agent Chain Protocol (MANDATORY)
 

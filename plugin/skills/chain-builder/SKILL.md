@@ -175,7 +175,7 @@ Chain state is stored per session in `~/.claude/tmp/chain-state/{sessionId}.json
 
 ### Agent Communication
 
-When an agent completes, PostToolUse saves its full output to `~/.claude/tmp/agent-outputs/{agentId}.md`. SubagentStart reads the previous agent's output file and injects it into the new agent's context as a `## Previous Agent: {type}` section. This gives every agent in the chain automatic access to what the previous agent produced, without any manual wiring.
+When an agent completes, PostToolUse saves its full output to `~/.claude/tmp/agent-outputs/{agentId}.md`. Before the next agent spawns, the PreToolUse hook (`runner.cjs`) reads this file and injects it directly into the new agent's prompt as a `## Previous Agent Output ({type})` section via `updatedInput`. This gives every agent in the chain automatic access to what the previous agent produced, without any manual wiring.
 
 ## Add Agent Team Node
 

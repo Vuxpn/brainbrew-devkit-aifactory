@@ -69,6 +69,7 @@ flow:
 4. If Haiku fails → fallback to keyword matching (pass/approved/success vs fail/error/issues)
 5. If no match → default to first route
 6. Route `"END"` stops the chain
+7. When the next agent spawns → PreToolUse hook fires and injects the previous agent's full output into the new agent's prompt under a `## Previous Agent Output (type)` section
 
 ## Agent Node Fields
 

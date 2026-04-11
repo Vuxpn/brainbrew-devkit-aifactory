@@ -4,7 +4,7 @@ Extend the chain engine with custom hook scripts that run at specific lifecycle 
 
 ## Overview
 
-You can inject your own hook scripts alongside the 3 built-in ones (`post-agent`, `subagent-start`, `subagent-stop`). Place scripts in `.claude/hooks/` and register them in your chain config.
+You can inject your own hook scripts alongside the built-in ones (`runner`, `post-agent`, `subagent-start`, `subagent-stop`). Place scripts in `.claude/hooks/` and register them in your chain config.
 
 ## Registering Hooks
 
@@ -12,6 +12,8 @@ Edit your chain file in `.claude/chains/`:
 
 ```yaml
 hooks:
+  PreToolUse:
+    - plugin:runner.cjs            # built-in: previous agent output injection
   PostToolUse:
     - plugin:post-agent.cjs        # built-in: chain routing
     - ./my-post-validator.js       # your custom script
@@ -89,14 +91,27 @@ Fires after agent completes. Reads `decide:` prompt, calls Haiku, picks next age
 4. Haiku returns `{"route": "agent-name", "reason": "..."}`
 5. Emit MANDATORY NEXT STEP instruction
 
+### runner.cjs (PreToolUse)
+
+Fires before an Agent tool call. Injects the previous agent's full output directly into the next agent's prompt.
+
+**Behavior:**
+1. PreToolUse fires before an `Agent` tool call
+2. Reads chain state to find the most recent previous agent and its saved output (`~/.claude/tmp/agent-outputs/{id}.md`)
+3. Appends `\n\n---\n\n## Previous Agent Output (type)\n\n{output}` to the agent's `prompt` field
+4. Returns `updatedInput` with the modified prompt so the spawned agent starts with full context
+
+This is the primary mechanism for automatic agent-to-agent context passing. No extra configuration required.
+
 ### subagent-start.cjs (SubagentStart)
 
 Injects context when agent spawns.
 
 **Injected Context:**
 - Chain state
-- Memory Bus messages for this agent
-- Previous agent output summary
+- Team context (if part of a parallel team)
+- Shared context from previous agents
+- Chain-specific instructions from `context:` field in the flow node
 
 ### subagent-stop.cjs (SubagentStop)
 

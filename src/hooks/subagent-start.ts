@@ -1,4 +1,4 @@
-import { readFileSync, existsSync } from 'fs';
+import { readFileSync } from 'fs';
 import { getState, updateState } from '../utils/state.js';
 import { log, logEvent } from '../utils/logger.js';
 import { CHAIN_CONFIG_FILE, VERIFICATION_RULES_FILE, TMP_DIR } from '../utils/paths.js';
@@ -177,22 +177,6 @@ Focus on your specific review area. Your output will be combined with other team
 ## Shared Context from Previous Agents
 ${JSON.stringify(state.sharedContext, null, 2)}
 `;
-    }
-    if (state?.previousAgents?.length) {
-      const prev = state.previousAgents[state.previousAgents.length - 1];
-      const prevId = (prev as { id?: string }).id;
-      if (prevId) {
-        const tmpOutputFile = join(TMP_DIR, 'agent-outputs', `${prevId}.md`);
-        if (existsSync(tmpOutputFile)) {
-          try {
-            const prevOutput = readFileSync(tmpOutputFile, 'utf-8');
-            if (prevOutput) {
-              context += `\n## Previous Agent: ${prev.type}\n\n${prevOutput}\n`;
-              log(LOG_FILE, `[PREV] Injected ${prev.type} output (${prevOutput.length} chars)`);
-            }
-          } catch { /* ignore */ }
-        }
-      }
     }
 
     const cwd = p.cwd ?? process.cwd();

@@ -1,0 +1,40 @@
+hooks:
+  PostToolUse:
+    - plugin:post-agent.cjs
+  SubagentStart:
+    - plugin:subagent-start.cjs
+  SubagentStop:
+    - plugin:subagent-stop.cjs
+
+flow:
+  scout:
+    saveOutput: true
+    context: |
+      Scan the codebase for recent changes that affect documentation.
+      Focus on: src/hooks/*.ts, plugin/scripts/*.cjs, plugin/config/templates/
+      Compare current code behavior with what SKILL.md documents.
+      List every discrepancy: new features undocumented, removed features still documented, changed behavior.
+    routes:
+      docs-manager: "Scan complete, discrepancies found"
+
+  docs-manager:
+    context: |
+      Update documentation files based on the scout's findings.
+      Files to update: plugin/skills/chain-builder/SKILL.md, plugin/CLAUDE.md
+      Only update sections that are outdated. Do not rewrite working sections.
+      Match the existing style and formatting.
+    routes:
+      code-reviewer: "Docs updated"
+
+  code-reviewer:
+    context: |
+      Review documentation changes for accuracy.
+      Verify every claim in the docs against the actual source code.
+      Check: are new features documented? Are removed features cleaned up?
+      Return APPROVED or ISSUES.
+    routes:
+      END: "Docs approved"
+      docs-manager: "Docs have issues"
+    decide: |
+      If docs are accurate and complete → "END"
+      If docs have errors or missing info → "docs-manager"

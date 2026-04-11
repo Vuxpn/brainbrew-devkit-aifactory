@@ -12,6 +12,17 @@ Hooks run through `runner.cjs` in order:
 User hooks: create `.claude/hooks.yaml` to customize any lifecycle event.
 Chain hooks: fire when an active chain file (`.claude/chains/{name}.yaml`) exists and has a `hooks:` section. Chain routing (MANDATORY NEXT STEP) only triggers when the agent type is defined in the chain's `flow:` section.
 
+### Chain Enforcement (built into runner.cjs)
+
+Before running any user or chain hooks, `runner.cjs` enforces pending chain steps:
+
+- **PreToolUse:** Blocks all non-Agent tool calls when a chain step is pending. Returns a block decision with a reminder to spawn the required agent.
+- **Stop:** Blocks session stop when a chain step is pending. Returns a MANDATORY NEXT STEP reminder.
+- **Release:** After 3 blocked attempts on the same event, the pending state is cleared and the block is lifted with a hint.
+- **Bypass:** The user can type `skip chain` or `/skip-chain` at any time to clear the pending chain step immediately.
+
+Each agent automatically receives the previous agent's full output injected into its context by SubagentStart. This requires no configuration — it happens for every agent in a chain.
+
 # Agent Chain Protocol (MANDATORY)
 
 ## Hook-Driven Chaining

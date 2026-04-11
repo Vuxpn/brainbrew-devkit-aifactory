@@ -1,0 +1,345 @@
+hooks:
+  PostToolUse:
+    - plugin:post-agent.cjs
+  SubagentStart:
+    - plugin:subagent-start.cjs
+  SubagentStop:
+    - plugin:subagent-stop.cjs
+
+flow:
+  # ═══════════════════════════════════════════════════════════════════════════
+  # AI DISCOVERY CHAIN v2
+  # Fixed based on meta-optimization debate:
+  # - Added intent-discovery as Phase 0
+  # - Fixed phantom steps (synthesis, validation, report now have agents)
+  # - Removed redundant brainstormer from debate
+  # - Added loop guards (max 2 exploration rounds)
+  # - Downgraded models for cost efficiency
+  # - Partitioned file ownership in optimization
+  # ═══════════════════════════════════════════════════════════════════════════
+
+  # ┌─────────────────────────────────────────────────────────────────────────┐
+  # │ PHASE 0: INTENT DISCOVERY (Clarify before exploring)                   │
+  # │ Ensures we explore the right direction                                 │
+  # └─────────────────────────────────────────────────────────────────────────┘
+
+  intent-discovery:
+    routes:
+      parallel-exploration: "Intent clarified - ready to explore"
+    decide: |
+      Always proceed to parallel-exploration after intent is clarified.
+      Route: "parallel-exploration"
+
+  # ┌─────────────────────────────────────────────────────────────────────────┐
+  # │ PHASE 1: PARALLEL EXPLORATION (Divergent Thinking)                     │
+  # │ Multiple agents explore the problem space simultaneously               │
+  # │ MAX 2 ROUNDS of exploration allowed                                    │
+  # └─────────────────────────────────────────────────────────────────────────┘
+
+  parallel-exploration:
+    type: team
+    max_rounds: 2
+    teammates:
+      - name: creative-explorer
+        agent: explorer
+        model: sonnet
+        prompt: |
+          Explore solutions based on the intent directive provided.
+          Generate 5-10 ideas. Label confidence:
+          🔮 speculative | 💡 promising | ⚡ breakthrough
+          Focus on Level 1-2 creativity (recombine patterns, break one assumption).
+          Only go Level 3 (wild reimagining) if explicitly requested.
+
+      - name: domain-researcher
+        agent: researcher
+        model: haiku
+        prompt: |
+          Research existing solutions, best practices, and prior art.
+          Find what others have tried and what worked/failed.
+          Ground the exploration with facts.
+
+      - name: codebase-scout
+        agent: scout
+        model: haiku
+        prompt: |
+          Explore the current codebase for relevant patterns.
+          Find existing implementations that could be reused.
+          Identify integration points and constraints.
+
+    routes:
+      forum-debate: "Exploration complete - ready for debate"
+    decide: |
+      Always proceed to forum-debate after exploration completes.
+      Route: "forum-debate"
+
+  # ┌─────────────────────────────────────────────────────────────────────────┐
+  # │ PHASE 2: FORUM DEBATE (Challenge & Refine)                             │
+  # │ Critic challenges findings, stress-tests ideas                         │
+  # │ (Removed redundant brainstormer - critic already does this)            │
+  # └─────────────────────────────────────────────────────────────────────────┘
+
+  forum-debate:
+    type: team
+    teammates:
+      - name: devils-advocate
+        agent: critic
+        model: sonnet
+        prompt: |
+          Challenge all ideas from exploration phase.
+          Use structured argumentation:
+          - CLAIM: [specific claim]
+          - EVIDENCE: [supporting data]
+          - WEAKNESS: [flaw found]
+          - FIX: [how to address]
+
+          Apply YAGNI, KISS, DRY ruthlessly.
+          Prioritize criticisms: FATAL > CRITICAL > SIGNIFICANT > MODERATE
+
+      - name: fact-checker
+        agent: researcher
+        model: haiku
+        prompt: |
+          Fact-check claims from exploration.
+          Verify: Do cited patterns/tools actually exist?
+          Flag any hallucinated or unverifiable claims.
+          Ground the debate in reality.
+
+    routes:
+      synthesis: "Debate complete - ready for synthesis"
+    decide: |
+      Always proceed to synthesis after debate completes.
+      Route: "synthesis"
+
+  # ┌─────────────────────────────────────────────────────────────────────────┐
+  # │ PHASE 3: SYNTHESIS (Convergent Thinking)                               │
+  # │ Moderator synthesizes debate into actionable conclusions               │
+  # └─────────────────────────────────────────────────────────────────────────┘
+
+  synthesis:
+    type: team
+    teammates:
+      - name: synthesizer
+        agent: moderator
+        model: sonnet
+        prompt: |
+          Synthesize exploration and debate results.
+
+          Output structured synthesis:
+          ## Consensus Points (action items)
+          ## Productive Tensions (trade-offs for humans to decide)
+          ## Confidence Score
+          - consensus_ratio: X/Y points agreed
+          - evidence_strength: 🔴🟡🟢
+          - overall: LOW (<0.6) | MEDIUM (0.6-0.8) | HIGH (>0.8)
+
+          ## Verdict
+          If confidence HIGH or MEDIUM: "PROCEED to optimization"
+          If confidence LOW and round < 2: "RE-EXPLORE with refined directive"
+          If confidence LOW and round >= 2: "PROCEED anyway (max rounds reached)"
+
+    routes:
+      optimization: "Synthesis complete with actionable recommendations"
+      parallel-exploration: "Need another exploration round (max 2)"
+    decide: |
+      If verdict says "PROCEED": Route "optimization"
+      If verdict says "RE-EXPLORE" AND exploration_round < 2: Route "parallel-exploration"
+      If exploration_round >= 2: Route "optimization" (force proceed)
+
+  # ┌─────────────────────────────────────────────────────────────────────────┐
+  # │ PHASE 4: OPTIMIZATION (Apply Learnings)                                │
+  # │ Improve prompts and skills based on discoveries                        │
+  # │ FILE OWNERSHIP: prompt-optimizer owns agents, skill-improver owns skills│
+  # └─────────────────────────────────────────────────────────────────────────┘
+
+  optimization:
+    type: team
+    teammates:
+      - name: prompt-tuner
+        agent: prompt-optimizer
+        model: sonnet
+        prompt: |
+          Apply synthesis insights to improve AGENT PROMPTS ONLY.
+          Your files: .claude/agents/*.md
+          DO NOT touch: .claude/skills/*, CLAUDE.md
+
+          Make minimal effective changes.
+          Show diffs with rationale.
+
+      - name: skill-enhancer
+        agent: skill-improver
+        model: sonnet
+        prompt: |
+          Apply synthesis insights to improve SKILLS ONLY.
+          Your files: .claude/skills/*/SKILL.md, .claude/skills/*/references/*
+          DO NOT touch: .claude/agents/*, CLAUDE.md
+
+          Preserve backward compatibility.
+          Show diffs with rationale.
+
+    routes:
+      validation: "Optimization complete - ready to validate"
+    decide: |
+      Always proceed to validation after optimization completes.
+      Route: "validation"
+
+  # ┌─────────────────────────────────────────────────────────────────────────┐
+  # │ PHASE 5: VALIDATION (Quality Gate)                                     │
+  # │ Tester verifies improvements actually work                             │
+  # └─────────────────────────────────────────────────────────────────────────┘
+
+  validation:
+    type: team
+    teammates:
+      - name: validator
+        agent: tester
+        model: sonnet
+        prompt: |
+          Validate the optimized prompts and skills.
+
+          Checks:
+          1. Syntax: Are all .md files valid?
+          2. Structure: Do agents have required frontmatter?
+          3. Consistency: No contradictory instructions?
+          4. Regression: Did we break existing functionality?
+
+          Output:
+          ## Validation Results
+          - [ ] Check 1: PASS/FAIL
+          - [ ] Check 2: PASS/FAIL
+          ...
+          ## Verdict: PASSED or FAILED with reasons
+
+    routes:
+      report: "All validations passed"
+      optimization: "Validation failed - needs fixes"
+    decide: |
+      If verdict is "PASSED": Route "report"
+      If verdict is "FAILED": Route "optimization"
+
+  # ┌─────────────────────────────────────────────────────────────────────────┐
+  # │ PHASE 6: REPORT (Document & Share)                                     │
+  # │ Generate comprehensive report of discoveries and improvements          │
+  # └─────────────────────────────────────────────────────────────────────────┘
+
+  report:
+    type: team
+    teammates:
+      - name: reporter
+        agent: docs-manager
+        model: haiku
+        prompt: |
+          Generate Discovery Report summarizing:
+
+          ## Discovery Summary
+          - Topic explored
+          - Key findings
+          - Changes made
+
+          ## Debate Highlights
+          - Main arguments
+          - How conflicts were resolved
+
+          ## Artifacts Modified
+          - List of files changed with brief description
+
+          ## Seeds for Future
+          - Unresolved questions
+          - Ideas deferred for later
+
+          Save report to: .claude/discovery-reports/{date}-{topic}.md
+
+    routes:
+      END: "Report complete - chain finished"
+    decide: |
+      Always END after report is generated.
+      Route: "END"
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  # ALTERNATIVE ENTRY POINTS
+  # ═══════════════════════════════════════════════════════════════════════════
+
+  quick-explore:
+    type: team
+    teammates:
+      - name: quick-explorer
+        agent: explorer
+        model: sonnet
+        prompt: "Quick exploration - skip intent discovery. Generate ideas fast."
+    routes:
+      forum-debate: "Quick exploration complete"
+    decide: |
+      Route: "forum-debate"
+
+  direct-debate:
+    type: team
+    teammates:
+      - name: debater
+        agent: critic
+        model: sonnet
+        prompt: "Debate the provided ideas directly."
+    routes:
+      synthesis: "Debate complete"
+    decide: |
+      Route: "synthesis"
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  # DEVELOPMENT CHAIN (Standard Code Development)
+  # Unchanged from original
+  # ═══════════════════════════════════════════════════════════════════════════
+
+  planner:
+    routes:
+      plan-reviewer: "Plan created - ready for review"
+    decide: |
+      Route: "plan-reviewer"
+
+  plan-reviewer:
+    reset_counters: true
+    routes:
+      implementer: "Plan approved"
+      planner: "Plan needs revision"
+    decide: |
+      If plan APPROVED or LGTM: Route "implementer"
+      If ISSUES found: Route "planner"
+
+  implementer:
+    routes:
+      code-review: "Implementation complete - ready for review"
+    decide: |
+      Route: "code-review"
+
+  code-review:
+    type: team
+    teammates:
+      - name: code-quality
+        agent: code-reviewer
+        prompt: "Review for bugs, quality, adherence to plan"
+      - name: security
+        agent: security-scan
+        prompt: "Scan for security vulnerabilities"
+    routes:
+      tester: "All reviews passed"
+      implementer: "Issues found - needs fixes"
+    decide: |
+      If ALL reviews PASSED: Route "tester"
+      If ANY review found issues: Route "implementer"
+
+  tester:
+    routes:
+      git-manager: "All tests passed"
+      debugger: "Tests failed"
+    decide: |
+      If tests PASSED: Route "git-manager"
+      If tests FAILED: Route "debugger"
+
+  debugger:
+    routes:
+      implementer: "Fix identified"
+    decide: |
+      Route: "implementer"
+
+  git-manager:
+    routes:
+      END: "Committed successfully"
+    decide: |
+      Route: "END"

@@ -32,6 +32,7 @@ mcp__brainbrew__template_bump(template: "develop")
 | `data` | data-collector → cleaner → analyzer → visualizer → reporter |
 | `moderation` | content-scanner → classifier → flagger → reviewer → actioner |
 | `review` | code-reviewer → END |
+| `skill-dev` | skill-finder → skill-creator → skill-reviewer (PASS = END, FIXES → skill-improver) |
 | `minimal` | hooks only (add your own) |
 
 ## Show Chain Flow
@@ -88,6 +89,10 @@ hooks:
   SubagentStop:
     - plugin:subagent-stop.cjs
 
+saveOutput:
+  - explore
+  - scout
+
 flow:
   agent-name:
     routes:
@@ -95,6 +100,8 @@ flow:
     decide: |
       AI routing rules
 ```
+
+The `saveOutput:` list at the top level specifies which agent types always save their output. The `explore` agent is saved by default even without this field. Outputs go to `.claude/outputs/{agent}/{timestamp}.md`.
 
 ## List Chains
 
@@ -140,6 +147,8 @@ Then update the previous agent's routes to point to the new agent.
 | `routes` | Yes | Map of `agent-name: "description"`. Multiple routes allowed |
 | `decide` | No | AI prompt sent to Haiku to pick route based on agent output |
 | `reset_counters` | No | Reset loop counters when routing (for approval gates). Loop protection is off by default. |
+| `context` | No | Extra context injected into the agent's system-reminder via SubagentStart. Supports inline text or multiline block (`\|`). |
+| `saveOutput` | No | Set to `true` to save this agent's output to `.claude/outputs/{agent}/{timestamp}.md` regardless of the top-level `saveOutput:` list. |
 | `next` | No | Legacy: simple next agent (use `routes` instead) |
 | `on_fail` | No | Legacy: fallback on failure keywords |
 | `on_issues` | No | Legacy: fallback on issue keywords |
@@ -152,6 +161,21 @@ Then update the previous agent's routes to point to the new agent.
 4. If Haiku fails → fallback to keyword matching (pass/approved/success vs fail/error/issues)
 5. If no match → default to first route
 6. Route `"END"` stops the chain
+
+### Chain Enforcement
+
+`runner.cjs` enforces pending chain steps before running any hook:
+
+- **PreToolUse:** If a chain step is pending (`currentAgent` is set), any non-Agent tool call is blocked with a reminder to spawn the required agent first.
+- **Stop:** If a chain step is pending, the session stop is blocked with a MANDATORY NEXT STEP reminder.
+- **Release after 3 blocks:** If the same event is blocked 3 times, the pending state is cleared and execution is released with a hint to spawn the agent.
+- **Bypass:** Type `skip chain` or `/skip-chain` in any message to clear the pending state immediately.
+
+Chain state is stored per session in `~/.claude/tmp/chain-state/{sessionId}.json` with two fields: `currentAgent` (the pending next agent) and `chainBlockCount` (how many times the current step has been blocked).
+
+### Agent Communication
+
+When an agent completes, PostToolUse saves its full output to `~/.claude/tmp/agent-outputs/{agentId}.md`. SubagentStart reads the previous agent's output file and injects it into the new agent's context as a `## Previous Agent: {type}` section. This gives every agent in the chain automatic access to what the previous agent produced, without any manual wiring.
 
 ## Add Agent Team Node
 
@@ -377,6 +401,80 @@ To customize a plugin, copy it into the project:
 cp -r <plugin-path> .claude/plugins/<name>/
 ```
 
+## Output Saving
+
+Agents can save their output to `.claude/outputs/{agent}/{timestamp}.md`. There are two ways to enable this:
+
+**Top-level list** — add a `saveOutput:` section to the chain YAML to auto-save specific agent types:
+```yaml
+saveOutput:
+  - explore
+  - planner
+```
+
+**Per-node flag** — set `saveOutput: true` on any agent node in the flow:
+```yaml
+flow:
+  scout:
+    saveOutput: true
+    routes:
+      planner: "Research complete"
+```
+
+The `explore` agent is always saved by default even without explicit config.
+
+### Output File Format
+
+Each saved file has a YAML frontmatter block followed by the agent's prompt and output:
+
+```
+---
+agent: planner
+id: {agentId}
+tokens: 12450
+duration_ms: 34200
+tools_used: 8
+timestamp: 2026-04-11T10:15:22.000Z
+session: {sessionId}
+next: implementer
+description: "Create implementation plan for feature X"
+tool_breakdown:
+  Read: 4
+  Bash: 2
+  Grep: 2
+files_read:
+  - /path/to/file.ts
+files_modified: []
+files_created: []
+bash_commands:
+  - "git status"
+grep_searches:
+  - "pattern in src/"
+---
+
+## Prompt
+
+{agent prompt}
+
+## Output
+
+{agent output}
+```
+
+Agent stats (`tool_breakdown`, `files_read`, `files_modified`, `files_created`, `bash_commands`, `grep_searches`) are parsed from the agent's JSONL transcript by SubagentStop and stored in `~/.claude/tmp/agent-stats/{agentId}.json` before the output file is written.
+
+### Output Directory Structure
+
+```
+.claude/outputs/
+  explore/
+    2026-04-10T22-36-35.md
+  planner/
+    2026-04-11T10-15-22.md
+  scout/
+    2026-04-11T11-00-01.md
+```
+
 ## After Setup
 
 Tell user:
@@ -385,7 +483,7 @@ Workflow ready! You can:
 - "Create an agent for X"
 - "Create a skill for Y"
 - "Add a team node for parallel review"
-- "Tell implementer to Z" (Memory Bus)
+- "Add agent context for X" (context injection)
 - "Show the chain flow"
 - "List available plugins" (plugin_list)
 ```
